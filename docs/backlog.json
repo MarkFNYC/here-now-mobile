@@ -1,0 +1,608 @@
+{
+  "project": "Here Now",
+  "version": "1.0",
+  "lastUpdated": "2025-11-03",
+  "totalStories": 62,
+  "mvpStories": 60,
+  "sprints": [
+    {
+      "sprint": 0,
+      "name": "Foundation & Authentication",
+      "weeks": "1-2",
+      "stories": [
+        {
+          "id": 46,
+          "title": "Create account via phone/email",
+          "category": "ACCOUNT",
+          "priority": "P0",
+          "effort": 5,
+          "status": "pending",
+          "dependencies": []
+        },
+        {
+          "id": 47,
+          "title": "Verify account",
+          "category": "ACCOUNT",
+          "priority": "P0",
+          "effort": 8,
+          "status": "pending",
+          "dependencies": [46]
+        },
+        {
+          "id": 48,
+          "title": "Add photo",
+          "category": "ACCOUNT",
+          "priority": "P0",
+          "effort": 5,
+          "status": "pending",
+          "dependencies": [46]
+        },
+        {
+          "id": 49,
+          "title": "Add bio",
+          "category": "ACCOUNT",
+          "priority": "P1",
+          "effort": 2,
+          "status": "pending",
+          "dependencies": [46]
+        },
+        {
+          "id": 50,
+          "title": "Add activity tags",
+          "category": "ACCOUNT",
+          "priority": "P0",
+          "effort": 3,
+          "status": "pending",
+          "dependencies": [46]
+        },
+        {
+          "id": 51,
+          "title": "Set neighbourhood",
+          "category": "ACCOUNT",
+          "priority": "P0",
+          "effort": 3,
+          "status": "pending",
+          "dependencies": [46]
+        },
+        {
+          "id": 52,
+          "title": "Manage notifications",
+          "category": "ACCOUNT",
+          "priority": "P1",
+          "effort": 3,
+          "status": "pending",
+          "dependencies": [46]
+        }
+      ]
+    },
+    {
+      "sprint": 1,
+      "name": "Core Discovery",
+      "weeks": "3-4",
+      "stories": [
+        {
+          "id": 7,
+          "title": "Toggle 'I'M ON' to show availability",
+          "category": "DISCOVER",
+          "priority": "P0",
+          "effort": 8,
+          "status": "pending",
+          "dependencies": [46, 51]
+        },
+        {
+          "id": 1,
+          "title": "See people nearby who are available today",
+          "category": "DISCOVER",
+          "priority": "P0",
+          "effort": 8,
+          "status": "pending",
+          "dependencies": [7]
+        },
+        {
+          "id": 6,
+          "title": "See who is currently ON",
+          "category": "DISCOVER",
+          "priority": "P0",
+          "effort": 5,
+          "status": "pending",
+          "dependencies": [1, 7]
+        },
+        {
+          "id": 3,
+          "title": "See distance/time to person or activity",
+          "category": "DISCOVER",
+          "priority": "P0",
+          "effort": 3,
+          "status": "pending",
+          "dependencies": [1]
+        },
+        {
+          "id": 8,
+          "title": "ON/OFF state resets daily",
+          "category": "DISCOVER",
+          "priority": "P0",
+          "effort": 5,
+          "status": "pending",
+          "dependencies": [7]
+        },
+        {
+          "id": 13,
+          "title": "View all options (no filters)",
+          "category": "DISCOVER",
+          "priority": "P0",
+          "effort": 2,
+          "status": "pending",
+          "dependencies": [1]
+        },
+        {
+          "id": 14,
+          "title": "Message when no one nearby",
+          "category": "DISCOVER",
+          "priority": "P1",
+          "effort": 2,
+          "status": "pending",
+          "dependencies": [1]
+        },
+        {
+          "id": 15,
+          "title": "Suggestions to turn ON",
+          "category": "DISCOVER",
+          "priority": "P1",
+          "effort": 2,
+          "status": "pending",
+          "dependencies": [7]
+        },
+        {
+          "id": 16,
+          "title": "Suggestions to widen filters",
+          "category": "DISCOVER",
+          "priority": "P2",
+          "effort": 2,
+          "status": "pending",
+          "dependencies": [9]
+        }
+      ]
+    },
+    {
+      "sprint": 2,
+      "name": "1:1 Connections",
+      "weeks": "5-6",
+      "stories": [
+        {
+          "id": 17,
+          "title": "View lightweight profile",
+          "category": "DECIDE",
+          "priority": "P0",
+          "effort": 5,
+          "status": "pending",
+          "dependencies": [1]
+        },
+        {
+          "id": 24,
+          "title": "Send 1:1 request",
+          "category": "CONNECT",
+          "priority": "P0",
+          "effort": 5,
+          "status": "pending",
+          "dependencies": [17]
+        },
+        {
+          "id": 30,
+          "title": "Receive notifications for requests",
+          "category": "CONNECT",
+          "priority": "P0",
+          "effort": 3,
+          "status": "pending",
+          "dependencies": [24]
+        },
+        {
+          "id": 25,
+          "title": "Accept/decline requests",
+          "category": "CONNECT",
+          "priority": "P0",
+          "effort": 5,
+          "status": "pending",
+          "dependencies": [24]
+        },
+        {
+          "id": 26,
+          "title": "Message after acceptance",
+          "category": "CONNECT",
+          "priority": "P0",
+          "effort": 8,
+          "status": "pending",
+          "dependencies": [25]
+        },
+        {
+          "id": 27,
+          "title": "Propose meet location",
+          "category": "CONNECT",
+          "priority": "P0",
+          "effort": 8,
+          "status": "pending",
+          "dependencies": [26]
+        },
+        {
+          "id": 28,
+          "title": "Propose meet time",
+          "category": "CONNECT",
+          "priority": "P0",
+          "effort": 5,
+          "status": "pending",
+          "dependencies": [26]
+        },
+        {
+          "id": 29,
+          "title": "Adjust place/time",
+          "category": "CONNECT",
+          "priority": "P0",
+          "effort": 3,
+          "status": "pending",
+          "dependencies": [27, 28]
+        },
+        {
+          "id": 36,
+          "title": "Confirm the meet",
+          "category": "CONNECT",
+          "priority": "P0",
+          "effort": 5,
+          "status": "pending",
+          "dependencies": [29]
+        },
+        {
+          "id": 37,
+          "title": "Cancel the meet",
+          "category": "CONNECT",
+          "priority": "P0",
+          "effort": 3,
+          "status": "pending",
+          "dependencies": [36]
+        }
+      ]
+    },
+    {
+      "sprint": 3,
+      "name": "Activities & Groups",
+      "weeks": "7-8",
+      "stories": [
+        {
+          "id": 2,
+          "title": "See activities happening nearby",
+          "category": "DISCOVER",
+          "priority": "P0",
+          "effort": 8,
+          "status": "pending",
+          "dependencies": [1]
+        },
+        {
+          "id": 4,
+          "title": "See approximate location of activity",
+          "category": "DISCOVER",
+          "priority": "P0",
+          "effort": 5,
+          "status": "pending",
+          "dependencies": [2]
+        },
+        {
+          "id": 5,
+          "title": "See group size on activity",
+          "category": "DISCOVER",
+          "priority": "P0",
+          "effort": 3,
+          "status": "pending",
+          "dependencies": [2]
+        },
+        {
+          "id": 31,
+          "title": "Join existing activity (pile-on)",
+          "category": "CONNECT",
+          "priority": "P0",
+          "effort": 5,
+          "status": "pending",
+          "dependencies": [2]
+        },
+        {
+          "id": 32,
+          "title": "Host notified when someone joins",
+          "category": "CONNECT",
+          "priority": "P0",
+          "effort": 3,
+          "status": "pending",
+          "dependencies": [31]
+        },
+        {
+          "id": 33,
+          "title": "Host sees who joined",
+          "category": "CONNECT",
+          "priority": "P0",
+          "effort": 5,
+          "status": "pending",
+          "dependencies": [31]
+        },
+        {
+          "id": 34,
+          "title": "Participant messages host",
+          "category": "CONNECT",
+          "priority": "P0",
+          "effort": 8,
+          "status": "pending",
+          "dependencies": [33]
+        },
+        {
+          "id": 35,
+          "title": "Host confirms group meet details",
+          "category": "CONNECT",
+          "priority": "P0",
+          "effort": 5,
+          "status": "pending",
+          "dependencies": [34]
+        },
+        {
+          "id": 38,
+          "title": "View confirmed details",
+          "category": "MEET",
+          "priority": "P0",
+          "effort": 5,
+          "status": "pending",
+          "dependencies": [36]
+        },
+        {
+          "id": 39,
+          "title": "Edit meeting time",
+          "category": "MEET",
+          "priority": "P1",
+          "effort": 3,
+          "status": "pending",
+          "dependencies": [38]
+        },
+        {
+          "id": 40,
+          "title": "Suggested public locations",
+          "category": "MEET",
+          "priority": "P1",
+          "effort": 8,
+          "status": "pending",
+          "dependencies": [27]
+        }
+      ]
+    },
+    {
+      "sprint": 4,
+      "name": "Filters, Safety & Reset",
+      "weeks": "9-10",
+      "stories": [
+        {
+          "id": 9,
+          "title": "Filter by distance",
+          "category": "DISCOVER",
+          "priority": "P1",
+          "effort": 3,
+          "status": "pending",
+          "dependencies": [1]
+        },
+        {
+          "id": 10,
+          "title": "Filter by activity type",
+          "category": "DISCOVER",
+          "priority": "P1",
+          "effort": 3,
+          "status": "pending",
+          "dependencies": [1]
+        },
+        {
+          "id": 11,
+          "title": "Filter by time",
+          "category": "DISCOVER",
+          "priority": "P2",
+          "effort": 3,
+          "status": "pending",
+          "dependencies": [2]
+        },
+        {
+          "id": 12,
+          "title": "Filter by 1:1 vs group",
+          "category": "DISCOVER",
+          "priority": "P1",
+          "effort": 2,
+          "status": "pending",
+          "dependencies": [1]
+        },
+        {
+          "id": 41,
+          "title": "Chats clear at midnight",
+          "category": "RESET",
+          "priority": "P0",
+          "effort": 5,
+          "status": "pending",
+          "dependencies": [26]
+        },
+        {
+          "id": 42,
+          "title": "Activities/intent clear at midnight",
+          "category": "RESET",
+          "priority": "P0",
+          "effort": 3,
+          "status": "pending",
+          "dependencies": [2]
+        },
+        {
+          "id": 43,
+          "title": "ON state resets at midnight",
+          "category": "RESET",
+          "priority": "P0",
+          "effort": 1,
+          "status": "pending",
+          "dependencies": [8]
+        },
+        {
+          "id": 44,
+          "title": "Manually clear connection early",
+          "category": "RESET",
+          "priority": "P1",
+          "effort": 3,
+          "status": "pending",
+          "dependencies": [26]
+        },
+        {
+          "id": 45,
+          "title": "Exchange contact off-app",
+          "category": "RESET",
+          "priority": "P2",
+          "effort": 3,
+          "status": "pending",
+          "dependencies": [26]
+        },
+        {
+          "id": 53,
+          "title": "Block someone",
+          "category": "SAFETY",
+          "priority": "P0",
+          "effort": 5,
+          "status": "pending",
+          "dependencies": [17]
+        },
+        {
+          "id": 54,
+          "title": "Report someone",
+          "category": "SAFETY",
+          "priority": "P0",
+          "effort": 5,
+          "status": "pending",
+          "dependencies": [17]
+        },
+        {
+          "id": 55,
+          "title": "Limited profile exposure",
+          "category": "SAFETY",
+          "priority": "P0",
+          "effort": 3,
+          "status": "pending",
+          "dependencies": [1]
+        },
+        {
+          "id": 56,
+          "title": "Precise location hidden",
+          "category": "SAFETY",
+          "priority": "P0",
+          "effort": 3,
+          "status": "pending",
+          "dependencies": [1]
+        }
+      ]
+    },
+    {
+      "sprint": 5,
+      "name": "Admin & Launch Prep",
+      "weeks": "11-12",
+      "stories": [
+        {
+          "id": 57,
+          "title": "Review reports",
+          "category": "ADMIN",
+          "priority": "P1",
+          "effort": 8,
+          "status": "pending",
+          "dependencies": [54]
+        },
+        {
+          "id": 58,
+          "title": "Deactivate users",
+          "category": "ADMIN",
+          "priority": "P1",
+          "effort": 5,
+          "status": "pending",
+          "dependencies": [57]
+        },
+        {
+          "id": 59,
+          "title": "Basic analytics",
+          "category": "ADMIN",
+          "priority": "P1",
+          "effort": 8,
+          "status": "pending",
+          "dependencies": []
+        },
+        {
+          "id": 60,
+          "title": "Manage banlist",
+          "category": "ADMIN",
+          "priority": "P1",
+          "effort": 5,
+          "status": "pending",
+          "dependencies": [58]
+        }
+      ]
+    },
+    {
+      "sprint": 6,
+      "name": "Polish & Experimental",
+      "weeks": "13-14",
+      "stories": [
+        {
+          "id": 61,
+          "title": "Propose future-day meet",
+          "category": "EXPERIMENTAL",
+          "priority": "P3",
+          "effort": 13,
+          "status": "pending",
+          "dependencies": [36]
+        },
+        {
+          "id": 62,
+          "title": "Auto-close expired activities",
+          "category": "EXPERIMENTAL",
+          "priority": "P1",
+          "effort": 3,
+          "status": "pending",
+          "dependencies": [42]
+        }
+      ]
+    }
+  ],
+  "categories": {
+    "DISCOVER": 16,
+    "DECIDE": 7,
+    "CONNECT": 14,
+    "MEET": 3,
+    "RESET": 5,
+    "ACCOUNT": 7,
+    "SAFETY": 4,
+    "ADMIN": 4,
+    "EXPERIMENTAL": 2
+  },
+  "priorities": {
+    "P0": 48,
+    "P1": 11,
+    "P2": 2,
+    "P3": 1
+  },
+  "effortEstimation": {
+    "totalPoints": 282,
+    "averagePerStory": 4.5,
+    "byCategory": {
+      "DISCOVER": 60,
+      "DECIDE": 24,
+      "CONNECT": 67,
+      "MEET": 16,
+      "RESET": 15,
+      "ACCOUNT": 24,
+      "SAFETY": 16,
+      "ADMIN": 26,
+      "EXPERIMENTAL": 16
+    }
+  },
+  "statusValues": [
+    "pending",
+    "in_progress",
+    "review",
+    "testing",
+    "completed",
+    "blocked"
+  ],
+  "priorityLevels": {
+    "P0": "Critical - Must have for MVP launch",
+    "P1": "High - Important for launch, minor scope reduction possible",
+    "P2": "Medium - Nice to have, can defer to post-launch",
+    "P3": "Low - Experimental, validate concept first"
+  }
+}

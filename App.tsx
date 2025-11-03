@@ -27,7 +27,7 @@ export default function App() {
       <AuthProvider>
         <NavigationContainer>
           <AppContent />
-          <StatusBar style="auto" />
+          <StatusBar style="dark" />
         </NavigationContainer>
       </AuthProvider>
     </SafeAreaProvider>
