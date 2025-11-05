@@ -5,6 +5,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 // Root Stack Navigator
 export type RootStackParamList = {
   Auth: undefined;
+  ProfileCreation: undefined;
   Main: undefined;
 };
 
@@ -21,6 +22,15 @@ export type AuthStackParamList = {
   Welcome: undefined;
   Login: undefined;
   Signup: undefined;
+  AuthCallback: undefined;
+};
+
+// Profile Creation Stack Navigator
+export type ProfileCreationStackParamList = {
+  PhotoUpload: undefined;
+  BioEntry: undefined;
+  ActivityTags: undefined;
+  Neighbourhood: undefined;
 };
 
 // Navigation prop types

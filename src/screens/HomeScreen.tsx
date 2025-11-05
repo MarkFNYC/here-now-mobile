@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, Switch, Alert, ActivityIndicator, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../contexts/AuthContext';
@@ -23,28 +23,33 @@ export default function HomeScreen() {
   const [nearbyUsers, setNearbyUsers] = useState<NearbyUser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [connectionRequests, setConnectionRequests] = useState<Set<string>>(new Set());
+  const fetchingRef = useRef(false); // Prevent concurrent fetches
 
-  // Load initial state from user
-  useEffect(() => {
-    if (user) {
-      setIsOn(user.is_on);
-      // If user is already ON, fetch nearby users
-      if (user.is_on && location) {
-        fetchNearbyUsers();
-      }
+  // Memoize fetchConnectionRequests to avoid recreating on every render
+  const fetchConnectionRequests = useCallback(async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('connections')
+        .select('connected_user_id')
+        .eq('user_id', user.id)
+        .eq('status', 'pending');
+
+      if (error) throw error;
+
+      const requestedUserIds = new Set(data.map(conn => conn.connected_user_id));
+      setConnectionRequests(requestedUserIds);
+    } catch (error: any) {
+      console.error('Error fetching connection requests:', error);
     }
   }, [user]);
 
-  // Fetch nearby users when location becomes available
-  useEffect(() => {
-    if (isOn && location && !locationLoading) {
-      fetchNearbyUsers();
-    }
-  }, [isOn, location, locationLoading]);
+  // Memoize fetchNearbyUsers to avoid recreating on every render
+  const fetchNearbyUsers = useCallback(async () => {
+    if (!location || fetchingRef.current) return;
 
-  async function fetchNearbyUsers() {
-    if (!location) return;
-
+    fetchingRef.current = true;
     setLoadingUsers(true);
     try {
       const { data, error } = await supabase.rpc('get_nearby_users', {
@@ -64,27 +69,24 @@ export default function HomeScreen() {
       console.error('Error fetching nearby users:', error);
     } finally {
       setLoadingUsers(false);
+      fetchingRef.current = false;
     }
-  }
+  }, [location, fetchConnectionRequests]);
 
-  async function fetchConnectionRequests() {
-    if (!user) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('connections')
-        .select('connected_user_id')
-        .eq('user_id', user.id)
-        .eq('status', 'pending');
-
-      if (error) throw error;
-
-      const requestedUserIds = new Set(data.map(conn => conn.connected_user_id));
-      setConnectionRequests(requestedUserIds);
-    } catch (error: any) {
-      console.error('Error fetching connection requests:', error);
+  // Load initial state from user (only when user changes, not on every render)
+  useEffect(() => {
+    if (user) {
+      setIsOn(user.is_on);
     }
-  }
+  }, [user?.is_on]); // Only depend on is_on, not entire user object
+
+  // Fetch nearby users when location becomes available or isOn changes
+  useEffect(() => {
+    if (isOn && location && !locationLoading && !fetchingRef.current) {
+      fetchNearbyUsers();
+    }
+  }, [isOn, location?.latitude, location?.longitude, locationLoading, fetchNearbyUsers]);
+
 
   async function createConnectionRequest(targetUserId: string) {
     if (!user) return;
@@ -298,6 +300,7 @@ export default function HomeScreen() {
                     bio={nearbyUser.bio}
                     activityTags={nearbyUser.activity_tags}
                     distance={nearbyUser.distance_km}
+                    photoUrl={nearbyUser.photo_url}
                     isPending={connectionRequests.has(nearbyUser.id)}
                     onSayHi={() => createConnectionRequest(nearbyUser.id)}
                     onPass={() => {

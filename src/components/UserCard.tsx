@@ -1,24 +1,35 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 
 interface UserCardProps {
   name: string;
   bio: string | null;
   activityTags: string[] | null;
   distance: number;
+  photoUrl?: string | null;
   isPending?: boolean;
   onSayHi?: () => void;
   onPass?: () => void;
 }
 
-export function UserCard({ name, bio, activityTags, distance, isPending, onSayHi, onPass }: UserCardProps) {
+export function UserCard({ name, bio, activityTags, distance, photoUrl, isPending, onSayHi, onPass }: UserCardProps) {
   return (
     <View style={styles.card}>
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{name.charAt(0).toUpperCase()}</Text>
-        </View>
+        {photoUrl ? (
+          <Image 
+            source={{ uri: photoUrl }} 
+            style={styles.avatar}
+            onError={(error) => {
+              console.error('Error loading user photo:', error);
+            }}
+          />
+        ) : (
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{name.charAt(0).toUpperCase()}</Text>
+          </View>
+        )}
         <View style={styles.headerInfo}>
           <Text style={styles.name}>{name}</Text>
           <Text style={styles.distance}>📍 {distance.toFixed(1)} km away</Text>

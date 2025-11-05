@@ -1,51 +1,124 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '../contexts/AuthContext';
+import ActivityTagsSelector from '../components/ActivityTagsSelector';
 
-export default function ProfileScreen() {
+export default function ProfileScreen({ navigation }: any) {
+  const { signOut, user, refreshUser } = useAuth();
+  const [showTagsSelector, setShowTagsSelector] = useState(false);
+
+  // Refresh user data when screen comes into focus to ensure we have latest photo
+  useEffect(() => {
+    if (!navigation) return;
+    
+    const unsubscribe = navigation.addListener('focus', () => {
+      // Only refresh when screen comes into focus, not on every render
+      refreshUser();
+    });
+    
+    return unsubscribe;
+  }, [navigation]); // Remove refreshUser from deps to avoid recreating listener
+
+  // Debug: Log photo URL
+  useEffect(() => {
+    if (user?.photo_url) {
+      console.log('[ProfileScreen] Photo URL:', user.photo_url);
+    } else {
+      console.log('[ProfileScreen] No photo URL found');
+    }
+  }, [user?.photo_url]);
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
+
+  // Show tags selector as a modal-style overlay
+  if (showTagsSelector) {
+    return (
+      <ActivityTagsSelector
+        onClose={() => setShowTagsSelector(false)}
+      />
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.content}>
         {/* Profile Header */}
         <View style={styles.profileCard}>
           <View style={styles.avatarContainer}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>?</Text>
-            </View>
+            {user?.photo_url ? (
+              <Image 
+                source={{ uri: user.photo_url }} 
+                style={styles.avatar}
+                onError={(error) => {
+                  console.error('Error loading profile photo:', error);
+                }}
+              />
+            ) : (
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>?</Text>
+              </View>
+            )}
             <View style={styles.statusDot} />
           </View>
-          <Text style={styles.name}>Your Profile</Text>
-          <Text style={styles.location}>📍 Clapham</Text>
+          <Text style={styles.name}>{user?.full_name || 'Your Profile'}</Text>
+          <Text style={styles.location}>📍 {user?.neighbourhood || 'Clapham'}</Text>
         </View>
 
         {/* About Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>ABOUT</Text>
-          <View style={styles.card}>
+          <TouchableOpacity style={styles.card}>
             <Text style={styles.cardText}>
-              Add your bio to let neighbors know more about you
+              {user?.bio || 'Add your bio to let neighbors know more about you'}
             </Text>
-          </View>
+          </TouchableOpacity>
         </View>
 
         {/* Interests Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>INTERESTS</Text>
-          <View style={styles.card}>
-            <Text style={styles.cardText}>
-              Add your interests to find like-minded neighbors
-            </Text>
-          </View>
+          <TouchableOpacity
+            style={styles.card}
+            onPress={() => setShowTagsSelector(true)}
+          >
+            {user?.activity_tags?.length ? (
+              <View style={styles.tagsDisplay}>
+                {user.activity_tags.map((tag, index) => (
+                  <View key={index} style={styles.tagChip}>
+                    <Text style={styles.tagChipText}>{tag}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.cardText}>
+                Add your interests to find like-minded neighbors
+              </Text>
+            )}
+            <Text style={styles.editHint}>Tap to edit</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Settings Button Placeholder */}
         <View style={styles.section}>
-          <View style={styles.button}>
+          <TouchableOpacity style={styles.button}>
             <Text style={styles.buttonText}>Edit Profile</Text>
-          </View>
-          <View style={styles.button}>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.button}>
             <Text style={styles.buttonText}>Settings</Text>
-          </View>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.button, styles.signOutButton]}
+            onPress={handleSignOut}
+          >
+            <Text style={[styles.buttonText, styles.signOutButtonText]}>Sign Out</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -127,6 +200,30 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     lineHeight: 20,
   },
+  tagsDisplay: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 8,
+  },
+  tagChip: {
+    backgroundColor: '#10b981',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  tagChipText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  editHint: {
+    fontSize: 12,
+    color: '#10b981',
+    marginTop: 8,
+    fontWeight: '500',
+  },
   button: {
     backgroundColor: '#ffffff',
     borderRadius: 12,
@@ -140,5 +237,12 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#111827',
     textAlign: 'center',
+  },
+  signOutButton: {
+    marginTop: 8,
+    borderColor: '#ef4444',
+  },
+  signOutButtonText: {
+    color: '#ef4444',
   },
 });
