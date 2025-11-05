@@ -16,10 +16,12 @@ import { useAuth } from '../contexts/AuthContext';
 
 interface NeighbourhoodScreenProps {
   navigation: any;
+  route?: { params?: { editMode?: boolean } };
 }
 
-export default function NeighbourhoodScreen({ navigation }: NeighbourhoodScreenProps) {
+export default function NeighbourhoodScreen({ navigation, route }: NeighbourhoodScreenProps) {
   const { user, refreshUser } = useAuth();
+  const editMode = route?.params?.editMode || false;
   const [neighbourhood, setNeighbourhood] = useState(user?.neighbourhood || '');
   const [saving, setSaving] = useState(false);
 
@@ -47,8 +49,12 @@ export default function NeighbourhoodScreen({ navigation }: NeighbourhoodScreenP
       }
 
       await refreshUser();
-      
-      // Profile creation complete - App.tsx will automatically route to MainNavigator
+
+      // In edit mode, go back to profile. Otherwise, profile creation complete
+      if (editMode) {
+        navigation.goBack();
+      }
+      // If not edit mode, App.tsx will automatically route to MainNavigator
       // based on isProfileComplete() check
     } catch (error: any) {
       console.error('Error saving neighbourhood:', error);
@@ -65,7 +71,7 @@ export default function NeighbourhoodScreen({ navigation }: NeighbourhoodScreenP
         style={styles.keyboardView}
       >
         <View style={styles.content}>
-          <Text style={styles.title}>Your Neighbourhood</Text>
+          <Text style={styles.title}>{editMode ? 'Edit Neighbourhood' : 'Your Neighbourhood'}</Text>
           <Text style={styles.subtitle}>
             Enter your neighbourhood to help us show you nearby activities
           </Text>
@@ -91,7 +97,7 @@ export default function NeighbourhoodScreen({ navigation }: NeighbourhoodScreenP
               {saving ? (
                 <ActivityIndicator color="#ffffff" />
               ) : (
-                <Text style={styles.primaryButtonText}>Complete Profile</Text>
+                <Text style={styles.primaryButtonText}>{editMode ? 'Save' : 'Complete Profile'}</Text>
               )}
             </TouchableOpacity>
           </View>

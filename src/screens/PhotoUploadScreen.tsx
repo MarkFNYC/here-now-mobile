@@ -16,11 +16,14 @@ import { useAuth } from '../contexts/AuthContext';
 
 interface PhotoUploadScreenProps {
   navigation: any;
+  route?: { params?: { editMode?: boolean } };
 }
 
-export default function PhotoUploadScreen({ navigation }: PhotoUploadScreenProps) {
+export default function PhotoUploadScreen({ navigation, route }: PhotoUploadScreenProps) {
   const { user, refreshUser } = useAuth();
-  const [photo, setPhoto] = useState<string | null>(null);
+  const editMode = route?.params?.editMode || false;
+  const [photo, setPhoto] = useState<string | null>(user?.photo_url || null);
+  const [newPhotoSelected, setNewPhotoSelected] = useState(false);
   const [uploading, setUploading] = useState(false);
 
   const requestPermissions = async () => {
@@ -53,6 +56,7 @@ export default function PhotoUploadScreen({ navigation }: PhotoUploadScreenProps
 
       if (!result.canceled && result.assets[0]) {
         setPhoto(result.assets[0].uri);
+        setNewPhotoSelected(true);
       }
     } catch (error) {
       console.error('Error picking image:', error);
@@ -73,6 +77,7 @@ export default function PhotoUploadScreen({ navigation }: PhotoUploadScreenProps
 
       if (!result.canceled && result.assets[0]) {
         setPhoto(result.assets[0].uri);
+        setNewPhotoSelected(true);
       }
     } catch (error) {
       console.error('Error taking photo:', error);
@@ -81,7 +86,18 @@ export default function PhotoUploadScreen({ navigation }: PhotoUploadScreenProps
   };
 
   const uploadPhoto = async () => {
-    if (!photo || !user) {
+    if (!user) {
+      Alert.alert('Error', 'You must be logged in');
+      return;
+    }
+
+    // In edit mode, if no new photo was selected, just go back
+    if (editMode && !newPhotoSelected) {
+      navigation.goBack();
+      return;
+    }
+
+    if (!photo) {
       Alert.alert('Error', 'Please select a photo first');
       return;
     }
@@ -218,10 +234,13 @@ export default function PhotoUploadScreen({ navigation }: PhotoUploadScreenProps
         throw new Error('Failed to get photo URL');
       }
 
+      // Add cache-busting timestamp to force browser to reload the image
+      const photoUrlWithTimestamp = `${urlData.publicUrl}?t=${Date.now()}`;
+
       // Update user profile with photo URL
       const { error: updateError } = await supabase
         .from('users')
-        .update({ photo_url: urlData.publicUrl })
+        .update({ photo_url: photoUrlWithTimestamp })
         .eq('id', user.id);
 
       if (updateError) {
@@ -233,8 +252,12 @@ export default function PhotoUploadScreen({ navigation }: PhotoUploadScreenProps
       // Refresh user data
       await refreshUser();
 
-      // Navigate to next screen
-      navigation.navigate('BioEntry');
+      // Navigate to next screen or back to profile
+      if (editMode) {
+        navigation.goBack();
+      } else {
+        navigation.navigate('BioEntry');
+      }
     } catch (error: any) {
       console.error('Error uploading photo:', error);
       
@@ -267,7 +290,7 @@ export default function PhotoUploadScreen({ navigation }: PhotoUploadScreenProps
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.title}>Add Your Photo</Text>
+        <Text style={styles.title}>{editMode ? 'Change Photo' : 'Add Your Photo'}</Text>
         <Text style={styles.subtitle}>
           Help others recognize you with a profile photo
         </Text>
@@ -302,7 +325,7 @@ export default function PhotoUploadScreen({ navigation }: PhotoUploadScreenProps
             <Text style={styles.secondaryButtonText}>Take Photo</Text>
           </TouchableOpacity>
 
-          {photo && (
+          {(photo || editMode) && (
             <TouchableOpacity
               style={[styles.button, styles.primaryButton, uploading && styles.buttonDisabled]}
               onPress={uploadPhoto}
@@ -311,18 +334,22 @@ export default function PhotoUploadScreen({ navigation }: PhotoUploadScreenProps
               {uploading ? (
                 <ActivityIndicator color="#ffffff" />
               ) : (
-                <Text style={styles.primaryButtonText}>Continue</Text>
+                <Text style={styles.primaryButtonText}>
+                  {editMode ? (newPhotoSelected ? 'Save' : 'Done') : 'Continue'}
+                </Text>
               )}
             </TouchableOpacity>
           )}
 
-          <TouchableOpacity
-            style={styles.skipButton}
-            onPress={handleSkip}
-            disabled={uploading}
-          >
-            <Text style={styles.skipButtonText}>Skip for now</Text>
-          </TouchableOpacity>
+          {!editMode && (
+            <TouchableOpacity
+              style={styles.skipButton}
+              onPress={handleSkip}
+              disabled={uploading}
+            >
+              <Text style={styles.skipButtonText}>Skip for now</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     </SafeAreaView>

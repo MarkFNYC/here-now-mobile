@@ -27,10 +27,16 @@ export type AuthStackParamList = {
 
 // Profile Creation Stack Navigator
 export type ProfileCreationStackParamList = {
-  PhotoUpload: undefined;
-  BioEntry: undefined;
-  ActivityTags: undefined;
-  Neighbourhood: undefined;
+  PhotoUpload: { editMode?: boolean };
+  BioEntry: { editMode?: boolean };
+  ActivityTags: { editMode?: boolean };
+  Neighbourhood: { editMode?: boolean };
+};
+
+// Profile Stack Navigator
+export type ProfileStackParamList = {
+  Profile: undefined;
+  NotificationSettings: undefined;
 };
 
 // Navigation prop types

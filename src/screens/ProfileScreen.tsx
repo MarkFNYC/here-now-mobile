@@ -105,15 +105,41 @@ export default function ProfileScreen({ navigation }: any) {
           </TouchableOpacity>
         </View>
 
-        {/* Settings Button Placeholder */}
+        {/* Edit Profile Options */}
         <View style={styles.section}>
-          <TouchableOpacity style={styles.button}>
-            <Text style={styles.buttonText}>Edit Profile</Text>
+          <Text style={styles.sectionTitle}>EDIT PROFILE</Text>
+          <TouchableOpacity
+            style={styles.card}
+            onPress={() => navigation?.navigate('EditPhoto', { editMode: true })}
+          >
+            <Text style={styles.cardLabel}>Change Photo</Text>
+            <Text style={styles.editHint}>→</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.button}>
+          <TouchableOpacity
+            style={[styles.card, { marginTop: 8 }]}
+            onPress={() => navigation?.navigate('EditBio', { editMode: true })}
+          >
+            <Text style={styles.cardLabel}>Edit Bio</Text>
+            <Text style={styles.editHint}>→</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.card, { marginTop: 8 }]}
+            onPress={() => navigation?.navigate('EditNeighbourhood', { editMode: true })}
+          >
+            <Text style={styles.cardLabel}>Edit Neighbourhood</Text>
+            <Text style={styles.editHint}>→</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Settings */}
+        <View style={styles.section}>
+          <TouchableOpacity
+            style={styles.button}
+            onPress={() => navigation?.navigate('NotificationSettings')}
+          >
             <Text style={styles.buttonText}>Settings</Text>
           </TouchableOpacity>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.button, styles.signOutButton]}
             onPress={handleSignOut}
           >
@@ -199,6 +225,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6b7280',
     lineHeight: 20,
+  },
+  cardLabel: {
+    fontSize: 15,
+    color: '#111827',
+    fontWeight: '500',
   },
   tagsDisplay: {
     flexDirection: 'row',

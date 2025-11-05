@@ -16,12 +16,14 @@ import { useAuth } from '../contexts/AuthContext';
 
 interface BioEntryScreenProps {
   navigation: any;
+  route?: { params?: { editMode?: boolean } };
 }
 
-const MAX_BIO_LENGTH = 150;
+const MAX_BIO_LENGTH = 200;
 
-export default function BioEntryScreen({ navigation }: BioEntryScreenProps) {
+export default function BioEntryScreen({ navigation, route }: BioEntryScreenProps) {
   const { user, refreshUser } = useAuth();
+  const editMode = route?.params?.editMode || false;
   const [bio, setBio] = useState(user?.bio || '');
   const [saving, setSaving] = useState(false);
 
@@ -50,7 +52,12 @@ export default function BioEntryScreen({ navigation }: BioEntryScreenProps) {
       }
 
       await refreshUser();
-      navigation.navigate('ActivityTags');
+
+      if (editMode) {
+        navigation.goBack();
+      } else {
+        navigation.navigate('ActivityTags');
+      }
     } catch (error: any) {
       console.error('Error saving bio:', error);
       Alert.alert('Error', error.message || 'Failed to save bio');
@@ -72,7 +79,7 @@ export default function BioEntryScreen({ navigation }: BioEntryScreenProps) {
         style={styles.keyboardView}
       >
         <View style={styles.content}>
-          <Text style={styles.title}>Tell Us About Yourself</Text>
+          <Text style={styles.title}>{editMode ? 'Edit Bio' : 'Tell Us About Yourself'}</Text>
           <Text style={styles.subtitle}>
             Write a short bio to help others get to know you
           </Text>
@@ -103,17 +110,19 @@ export default function BioEntryScreen({ navigation }: BioEntryScreenProps) {
               {saving ? (
                 <ActivityIndicator color="#ffffff" />
               ) : (
-                <Text style={styles.primaryButtonText}>Continue</Text>
+                <Text style={styles.primaryButtonText}>{editMode ? 'Save' : 'Continue'}</Text>
               )}
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.skipButton}
-              onPress={handleSkip}
-              disabled={saving}
-            >
-              <Text style={styles.skipButtonText}>Skip</Text>
-            </TouchableOpacity>
+            {!editMode && (
+              <TouchableOpacity
+                style={styles.skipButton}
+                onPress={handleSkip}
+                disabled={saving}
+              >
+                <Text style={styles.skipButtonText}>Skip</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </KeyboardAvoidingView>
