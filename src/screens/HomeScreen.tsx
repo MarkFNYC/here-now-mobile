@@ -76,7 +76,8 @@ export default function HomeScreen() {
   // Load initial state from user (only when user changes, not on every render)
   useEffect(() => {
     if (user) {
-      setIsOn(user.is_on);
+      // Ensure we always pass a boolean, not a string
+      setIsOn(Boolean(user.is_on));
     }
   }, [user?.is_on]); // Only depend on is_on, not entire user object
 

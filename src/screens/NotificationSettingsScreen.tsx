@@ -51,14 +51,18 @@ export default function NotificationSettingsScreen({ navigation }: any) {
     setLoading(true);
     try {
       // Load settings from user's notification_settings JSONB field
-      const userSettings = user.notification_settings as NotificationSettings | null;
-      
+      const userSettings = user.notification_settings as any;
+
       if (userSettings) {
-        // Merge with defaults to ensure all keys exist
-        setSettings({
-          ...DEFAULT_SETTINGS,
-          ...userSettings,
-        });
+        // Coerce all values to booleans (JSONB might return strings)
+        const coercedSettings: NotificationSettings = {
+          requests: Boolean(userSettings.requests ?? DEFAULT_SETTINGS.requests),
+          joins: Boolean(userSettings.joins ?? DEFAULT_SETTINGS.joins),
+          messages: Boolean(userSettings.messages ?? DEFAULT_SETTINGS.messages),
+          reset: Boolean(userSettings.reset ?? DEFAULT_SETTINGS.reset),
+          meetups: Boolean(userSettings.meetups ?? DEFAULT_SETTINGS.meetups),
+        };
+        setSettings(coercedSettings);
       } else {
         // No settings found, use defaults
         setSettings(DEFAULT_SETTINGS);
@@ -72,11 +76,14 @@ export default function NotificationSettingsScreen({ navigation }: any) {
   };
 
   const handleToggle = async (key: keyof NotificationSettings, value: boolean) => {
+    // Ensure value is a proper boolean
+    const boolValue = Boolean(value);
+
     // Warn before disabling critical notifications
-    if (!value && (key === 'requests' || key === 'messages')) {
+    if (!boolValue && (key === 'requests' || key === 'messages')) {
       // Store the pending toggle for this specific key
-      setPendingToggle({ key, value });
-      
+      setPendingToggle({ key, value: boolValue });
+
       Alert.alert(
         'Disable Notifications?',
         `You'll miss important ${key === 'requests' ? 'connection requests' : 'messages'} if you disable this. Are you sure?`,
@@ -95,7 +102,7 @@ export default function NotificationSettingsScreen({ navigation }: any) {
             onPress: () => {
               // Clear pending toggle first, then update
               setPendingToggle(null);
-              updateSetting(key, value);
+              updateSetting(key, boolValue);
             },
           },
         ]
@@ -108,16 +115,19 @@ export default function NotificationSettingsScreen({ navigation }: any) {
     if (pendingToggle?.key === key) {
       setPendingToggle(null);
     }
-    updateSetting(key, value);
+    updateSetting(key, boolValue);
   };
 
   const updateSetting = async (key: keyof NotificationSettings, value: boolean) => {
     if (!user) return;
 
+    // Ensure value is a proper boolean
+    const boolValue = Boolean(value);
+
     const previousSettings = { ...settings };
     const newSettings = {
       ...settings,
-      [key]: value,
+      [key]: boolValue,
     };
 
     // Optimistic update

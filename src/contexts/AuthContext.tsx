@@ -439,9 +439,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // - activity_tags exists and has at least 1 tag (required)
     // - neighbourhood exists and is not empty (required)
     // - photo_url and bio are optional
-    const hasActivityTags = user.activity_tags && user.activity_tags.length > 0;
-    const hasNeighbourhood = user.neighbourhood && user.neighbourhood.trim().length > 0;
-    return hasActivityTags && hasNeighbourhood;
+    const hasActivityTags = Boolean(user.activity_tags && user.activity_tags.length > 0);
+    const hasNeighbourhood = Boolean(user.neighbourhood && user.neighbourhood.trim().length > 0);
+    return Boolean(hasActivityTags && hasNeighbourhood);
   }
 
   const value = {
