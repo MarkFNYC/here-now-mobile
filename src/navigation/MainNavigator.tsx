@@ -4,9 +4,9 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MainTabParamList } from '../types/navigation';
 
 // Import screens (we'll create these next)
-import HomeScreen from '../screens/HomeScreen';
+import HomeStackNavigator from './HomeStackNavigator';
 import ActivitiesScreen from '../screens/ActivitiesScreen';
-import ChatsScreen from '../screens/ChatsScreen';
+import ChatsStackNavigator from './ChatsStackNavigator';
 import ProfileStackNavigator from './ProfileStackNavigator';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -28,7 +28,7 @@ export default function MainNavigator() {
     >
       <Tab.Screen
         name="Home"
-        component={HomeScreen}
+        component={HomeStackNavigator}
         options={{
           tabBarLabel: 'Home',
           tabBarIcon: ({ color, size }) => (
@@ -48,7 +48,7 @@ export default function MainNavigator() {
       />
       <Tab.Screen
         name="Chats"
-        component={ChatsScreen}
+        component={ChatsStackNavigator}
         options={{
           tabBarLabel: 'Chats',
           tabBarIcon: ({ color, size }) => (

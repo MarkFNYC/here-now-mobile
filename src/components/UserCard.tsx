@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 
 interface UserCardProps {
+  userId: string;
   name: string;
   bio: string | null;
   activityTags: string[] | null;
@@ -10,11 +11,16 @@ interface UserCardProps {
   isPending?: boolean;
   onSayHi?: () => void;
   onPass?: () => void;
+  onPress?: () => void;
 }
 
-export function UserCard({ name, bio, activityTags, distance, photoUrl, isPending, onSayHi, onPass }: UserCardProps) {
+export function UserCard({ userId, name, bio, activityTags, distance, photoUrl, isPending, onSayHi, onPass, onPress }: UserCardProps) {
   return (
-    <View style={styles.card}>
+    <TouchableOpacity 
+      style={styles.card}
+      onPress={onPress}
+      activeOpacity={0.9}
+    >
       {/* Header */}
       <View style={styles.header}>
         {photoUrl ? (
@@ -55,10 +61,16 @@ export function UserCard({ name, bio, activityTags, distance, photoUrl, isPendin
       <View style={styles.actions}>
         {!isPending ? (
           <>
-            <TouchableOpacity style={[styles.button, styles.passButton]} onPress={onPass}>
+            <TouchableOpacity 
+              style={[styles.button, styles.passButton]} 
+              onPress={onPass}
+            >
               <Text style={styles.passButtonText}>Pass</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.button, styles.sayHiButton]} onPress={onSayHi}>
+            <TouchableOpacity 
+              style={[styles.button, styles.sayHiButton]} 
+              onPress={onSayHi}
+            >
               <Text style={styles.sayHiButtonText}>Say Hi 👋</Text>
             </TouchableOpacity>
           </>
@@ -68,7 +80,7 @@ export function UserCard({ name, bio, activityTags, distance, photoUrl, isPendin
           </View>
         )}
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 

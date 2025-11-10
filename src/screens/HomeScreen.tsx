@@ -1,10 +1,14 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, Switch, Alert, ActivityIndicator, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { useLocation } from '../hooks/useLocation';
 import { UserCard } from '../components/UserCard';
+import { HomeStackParamList } from '../types/navigation';
+
+type HomeScreenProps = NativeStackScreenProps<HomeStackParamList, 'HomeFeed'>;
 
 interface NearbyUser {
   id: string;
@@ -15,7 +19,7 @@ interface NearbyUser {
   distance_km: number;
 }
 
-export default function HomeScreen() {
+export default function HomeScreen({ navigation }: HomeScreenProps) {
   const { user } = useAuth();
   const { location, loading: locationLoading, error: locationError } = useLocation();
   const [isOn, setIsOn] = useState(false);
@@ -27,23 +31,31 @@ export default function HomeScreen() {
 
   // Memoize fetchConnectionRequests to avoid recreating on every render
   const fetchConnectionRequests = useCallback(async () => {
-    if (!user) return;
+    if (!user?.id) return;
 
     try {
       const { data, error } = await supabase
         .from('connections')
-        .select('connected_user_id')
-        .eq('user_id', user.id)
-        .eq('status', 'pending');
+        .select('target_id')
+        .eq('requester_id', user.id)
+        .eq('status', 'pending')
+        .eq('connection_type', '1on1');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching connection requests:', error);
+        // Don't throw - just log and continue
+        return;
+      }
 
-      const requestedUserIds = new Set(data.map(conn => conn.connected_user_id));
-      setConnectionRequests(requestedUserIds);
+      if (data) {
+        const requestedUserIds = new Set(data.map((conn: any) => conn.target_id));
+        setConnectionRequests(requestedUserIds);
+      }
     } catch (error: any) {
       console.error('Error fetching connection requests:', error);
+      // Silently fail - this is not critical for the UI
     }
-  }, [user]);
+  }, [user?.id]);
 
   // Memoize fetchNearbyUsers to avoid recreating on every render
   const fetchNearbyUsers = useCallback(async () => {
@@ -96,10 +108,10 @@ export default function HomeScreen() {
       const { data, error } = await supabase
         .from('connections')
         .insert({
-          user_id: user.id,
-          connected_user_id: targetUserId,
+          requester_id: user.id,
+          target_id: targetUserId,
+          connection_type: '1on1',
           status: 'pending',
-          created_at: new Date().toISOString(),
         })
         .select()
         .single();
@@ -297,12 +309,14 @@ export default function HomeScreen() {
                 {nearbyUsers.map((nearbyUser) => (
                   <UserCard
                     key={nearbyUser.id}
+                    userId={nearbyUser.id}
                     name={nearbyUser.full_name}
                     bio={nearbyUser.bio}
                     activityTags={nearbyUser.activity_tags}
                     distance={nearbyUser.distance_km}
                     photoUrl={nearbyUser.photo_url}
                     isPending={connectionRequests.has(nearbyUser.id)}
+                    onPress={() => navigation?.navigate('UserProfile', { userId: nearbyUser.id })}
                     onSayHi={() => createConnectionRequest(nearbyUser.id)}
                     onPass={() => {
                       setNearbyUsers(nearbyUsers.filter(u => u.id !== nearbyUser.id));

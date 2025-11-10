@@ -17,6 +17,12 @@ export type MainTabParamList = {
   Profile: undefined;
 };
 
+// Home Stack Navigator
+export type HomeStackParamList = {
+  HomeFeed: undefined;
+  UserProfile: { userId: string };
+};
+
 // Auth Stack Navigator
 export type AuthStackParamList = {
   Welcome: undefined;
