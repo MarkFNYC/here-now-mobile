@@ -164,6 +164,7 @@ export interface Database {
           content: string
           is_system_message: boolean
           read_at: string | null
+          archived_at: string | null
           created_at: string
         }
         Insert: {
@@ -173,6 +174,7 @@ export interface Database {
           content: string
           is_system_message?: boolean
           read_at?: string | null
+          archived_at?: string | null
           created_at?: string
         }
         Update: {
@@ -182,6 +184,7 @@ export interface Database {
           content?: string
           is_system_message?: boolean
           read_at?: string | null
+          archived_at?: string | null
           created_at?: string
         }
       }

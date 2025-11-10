@@ -6,6 +6,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { ChatsStackParamList } from '../navigation/ChatsStackNavigator';
+import { useNotifications } from '../hooks/useNotifications';
 
 type ChatsScreenProps = NativeStackScreenProps<ChatsStackParamList, 'ChatsList'>;
 
@@ -22,6 +23,10 @@ interface ChatConnection {
     created_at: string;
     sender_id: string;
   } | null;
+  meet_time: string | null;
+  meet_location: string | null;
+  is_confirmed: boolean | null;
+  status: string | null;
 }
 
 export default function ChatsScreen({ navigation }: ChatsScreenProps) {
@@ -29,6 +34,11 @@ export default function ChatsScreen({ navigation }: ChatsScreenProps) {
   const [chats, setChats] = useState<ChatConnection[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const {
+    unreadRequestCount,
+    latestRequestNotification,
+    markRequestNotificationsAsRead,
+  } = useNotifications();
 
   const loadChats = useCallback(async () => {
     if (!user?.id) return;
@@ -37,9 +47,8 @@ export default function ChatsScreen({ navigation }: ChatsScreenProps) {
       // Fetch all accepted connections where current user is either requester or target
       const { data: connections, error: connectionsError } = await supabase
         .from('connections')
-        .select('id, requester_id, target_id')
+        .select('id, requester_id, target_id, meet_time, meet_location, is_confirmed, status')
         .or(`requester_id.eq.${user.id},target_id.eq.${user.id}`)
-        .eq('status', 'accepted')
         .eq('connection_type', '1on1')
         .order('updated_at', { ascending: false });
 
@@ -81,11 +90,21 @@ export default function ChatsScreen({ navigation }: ChatsScreenProps) {
             photo_url: null,
           },
           last_message: messages || null,
+          meet_time: conn.meet_time,
+          meet_location: conn.meet_location,
+          is_confirmed: conn.is_confirmed,
+          status: conn.status,
         };
       });
 
       const chatData = await Promise.all(chatPromises);
-      setChats(chatData);
+      const filtered = chatData.filter(
+        (chat) =>
+          chat.last_message !== null ||
+          chat.is_confirmed ||
+          chat.status === 'cancelled'
+      );
+      setChats(filtered);
     } catch (error: any) {
       console.error('Error loading chats:', error);
     } finally {
@@ -97,7 +116,8 @@ export default function ChatsScreen({ navigation }: ChatsScreenProps) {
   useFocusEffect(
     useCallback(() => {
       loadChats();
-    }, [loadChats])
+      markRequestNotificationsAsRead();
+    }, [loadChats, markRequestNotificationsAsRead])
   );
 
   const onRefresh = () => {
@@ -113,11 +133,106 @@ export default function ChatsScreen({ navigation }: ChatsScreenProps) {
 
     if (minutes < 1) return 'Just now';
     if (minutes < 60) return `${minutes}m`;
-    
+
     const hours = Math.floor(minutes / 60);
     if (hours < 24) return `${hours}h`;
-    
+
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  const parseJsonSafe = (value: any) => {
+    if (!value) return null;
+
+    if (typeof value === 'object') {
+      return value;
+    }
+
+    if (typeof value !== 'string') return null;
+
+    const attemptParse = (input: string) => {
+      try {
+        return JSON.parse(input);
+      } catch {
+        return null;
+      }
+    };
+
+    let parsed = attemptParse(value.trim());
+    if (parsed) return parsed;
+
+    if (value.startsWith('"') && value.endsWith('"')) {
+      const unescaped = value.slice(1, -1).replace(/\\"/g, '"');
+      parsed = attemptParse(unescaped);
+      if (parsed) return parsed;
+    }
+
+    return null;
+  };
+
+  const formatPreview = (chat: ChatConnection) => {
+    const locationObj = parseJsonSafe(chat.meet_location);
+    const locationName =
+      locationObj?.name ||
+      locationObj?.location_name ||
+      (typeof chat.meet_location === 'string' ? chat.meet_location : null);
+
+    if (chat.status === 'cancelled') {
+      return `❌ Cancelled${locationName ? ` · ${locationName}` : ''}`;
+    }
+
+    if (chat.is_confirmed) {
+      try {
+        const date = chat.meet_time ? new Date(chat.meet_time) : null;
+        const dateString = date
+          ? date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
+          : null;
+        const timeString = date ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null;
+        return `✅ Confirmed${dateString ? ` · ${dateString}` : ''}${timeString ? ` ${timeString}` : ''}${
+          locationName ? ` · ${locationName}` : ''
+        }`;
+      } catch {
+        return '✅ Meetup confirmed';
+      }
+    }
+
+    if (!chat.last_message) {
+      return 'No messages yet';
+    }
+
+    const parsed = parseJsonSafe(chat.last_message.content);
+
+    if (parsed?.type === 'location') {
+      const acceptedSuffix = parsed.status === 'accepted' ? ' (accepted)' : '';
+      return `📍 ${parsed.location_name}${acceptedSuffix}`;
+    }
+
+    if (parsed?.type === 'time') {
+      const acceptedSuffix = parsed.status === 'accepted' ? ' (accepted)' : '';
+
+      try {
+        const date = new Date(parsed.iso_time);
+        const diffMinutes = Math.round((date.getTime() - Date.now()) / 60000);
+
+        if (!Number.isFinite(diffMinutes)) {
+          return `⏰ ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}${acceptedSuffix}`;
+        }
+
+        if (Math.abs(diffMinutes) < 60) {
+          return `⏰ In ${diffMinutes} min${acceptedSuffix}`;
+        }
+
+        const diffHours = Math.round(diffMinutes / 60);
+        if (Math.abs(diffHours) < 24) {
+          return `⏰ In ${diffHours} hr${diffHours === 1 ? '' : 's'}${acceptedSuffix}`;
+        }
+
+        return `⏰ ${date.toLocaleDateString([], { month: 'short', day: 'numeric' })}${acceptedSuffix}`;
+      } catch {
+        return `⏰ ${parsed.iso_time}${acceptedSuffix}`;
+      }
+    }
+
+    return chat.last_message.content;
   };
 
   const handleChatPress = (chat: ChatConnection) => {
@@ -125,6 +240,11 @@ export default function ChatsScreen({ navigation }: ChatsScreenProps) {
       connectionId: chat.connection_id,
       userId: chat.other_user.id,
     });
+  };
+
+  const handleRequestsPress = () => {
+    markRequestNotificationsAsRead();
+    navigation.navigate('Requests');
   };
 
   if (loading) {
@@ -147,13 +267,28 @@ export default function ChatsScreen({ navigation }: ChatsScreenProps) {
       <View style={styles.header}>
         <Text style={styles.title}>Chats</Text>
         <Text style={styles.subtitle}>Your conversations</Text>
-        <TouchableOpacity
-          style={styles.requestsButton}
-          onPress={() => navigation.navigate('Requests')}
-        >
+        <TouchableOpacity style={styles.requestsButton} onPress={handleRequestsPress}>
           <Text style={styles.requestsButtonText}>View Requests</Text>
+          {unreadRequestCount > 0 && (
+            <View style={styles.requestsBadge}>
+              <Text style={styles.requestsBadgeText}>
+                {unreadRequestCount > 9 ? '9+' : unreadRequestCount}
+              </Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
+
+      {latestRequestNotification && !latestRequestNotification.is_read && (
+        <TouchableOpacity
+          style={styles.notificationBanner}
+          onPress={handleRequestsPress}
+          activeOpacity={0.9}
+        >
+          <Text style={styles.notificationBannerTitle}>New connection request</Text>
+          <Text style={styles.notificationBannerBody}>{latestRequestNotification.body}</Text>
+        </TouchableOpacity>
+      )}
 
       <ScrollView
         style={styles.content}
@@ -198,17 +333,13 @@ export default function ChatsScreen({ navigation }: ChatsScreenProps) {
                     </Text>
                   )}
                 </View>
-                {chat.last_message ? (
-                  <Text
-                    style={styles.chatPreview}
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
-                  >
-                    {chat.last_message.content}
-                  </Text>
-                ) : (
-                  <Text style={styles.chatPreviewEmpty}>No messages yet</Text>
-                )}
+                <Text
+                  style={styles.chatPreview}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {formatPreview(chat)}
+                </Text>
               </View>
             </TouchableOpacity>
           ))
@@ -246,11 +377,49 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderRadius: 12,
     alignSelf: 'flex-start',
+    position: 'relative',
   },
   requestsButtonText: {
     color: '#ffffff',
     fontSize: 15,
     fontWeight: '600',
+  },
+  requestsBadge: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: '#ef4444',
+    borderRadius: 12,
+    minWidth: 24,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  requestsBadgeText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  notificationBanner: {
+    marginHorizontal: 16,
+    marginBottom: 8,
+    backgroundColor: '#ecfdf5',
+    borderColor: '#34d399',
+    borderWidth: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+  },
+  notificationBannerTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#047857',
+    marginBottom: 4,
+  },
+  notificationBannerBody: {
+    fontSize: 13,
+    color: '#065f46',
   },
   loadingContainer: {
     flex: 1,

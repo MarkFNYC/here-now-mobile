@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -20,6 +20,9 @@ import { ChatsStackParamList } from '../navigation/ChatsStackNavigator';
 import type { Message } from '../types/database';
 import { LocationPicker } from '../components/LocationPicker';
 import { LocationMessageCard } from '../components/LocationMessageCard';
+import { TimePicker } from '../components/TimePicker';
+import { TimeMessageCard } from '../components/TimeMessageCard';
+import { CancelMeetupModal } from '../components/CancelMeetupModal';
 
 type ChatScreenProps = NativeStackScreenProps<ChatsStackParamList, 'Chat'>;
 
@@ -39,8 +42,51 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
   const [otherUser, setOtherUser] = useState<ChatUser | null>(null);
   const [connection, setConnection] = useState<any>(null);
   const [showLocationPicker, setShowLocationPicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [canceling, setCanceling] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
   const channelRef = useRef<any>(null);
+  const connectionMeetLocation = useMemo(() => {
+    if (!connection?.meet_location) return null;
+    if (typeof connection.meet_location === 'string') {
+      try {
+        return JSON.parse(connection.meet_location);
+      } catch {
+        return null;
+      }
+    }
+    return connection.meet_location;
+  }, [connection?.meet_location]);
+
+  const connectionMeetTime = useMemo(() => {
+    if (!connection?.meet_time) return null;
+    try {
+      return new Date(connection.meet_time).toISOString();
+    } catch {
+      return null;
+    }
+  }, [connection?.meet_time]);
+
+  const meetLocationName = connectionMeetLocation?.name || connectionMeetLocation?.location_name || null;
+  const isMeetupConfirmed = Boolean(connection?.is_confirmed);
+  const isMeetupCancelled = connection?.status === 'cancelled';
+  const canConfirmMeetup = Boolean(connectionMeetLocation && connectionMeetTime && !isMeetupConfirmed && !isMeetupCancelled);
+  const canShowPendingBanner = !isMeetupConfirmed && !isMeetupCancelled;
+
+  const confirmedMeetupDescription = useMemo(() => {
+    if (!isMeetupConfirmed || !connectionMeetTime) return null;
+    try {
+      const date = new Date(connectionMeetTime);
+      const timeString = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const dateString = date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+      return `${dateString} at ${timeString}${meetLocationName ? ` · ${meetLocationName}` : ''}`;
+    } catch {
+      return null;
+    }
+  }, [isMeetupConfirmed, connectionMeetTime, meetLocationName]);
+
 
   // Load connection details and other user info
   useEffect(() => {
@@ -71,17 +117,36 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
         },
         (payload) => {
           console.log('[Chat] New message received:', payload.new);
-          // Add new message to list
           setMessages((prev) => {
-            // Check if message already exists (avoid duplicates)
             const exists = prev.some((msg) => msg.id === payload.new.id);
             if (exists) return prev;
-            return [...prev, payload.new as Message];
+            const newMessage = payload.new as Message;
+            if (newMessage.archived_at) {
+              return prev;
+            }
+            return [...prev, newMessage];
           });
-          // Auto-scroll to bottom after a short delay
           setTimeout(() => {
             scrollViewRef.current?.scrollToEnd({ animated: true });
           }, 100);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'messages',
+          filter: `connection_id=eq.${connectionId}`,
+        },
+        (payload) => {
+          const updated = payload.new as Message;
+          setMessages((prev) => {
+            if (updated.archived_at) {
+              return prev.filter((msg) => msg.id !== updated.id);
+            }
+            return prev.map((msg) => (msg.id === updated.id ? updated : msg));
+          });
         }
       )
       .subscribe();
@@ -93,6 +158,31 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
       supabase.removeChannel(channel);
     };
   }, [connectionId, currentUser]);
+
+  useEffect(() => {
+    if (!connectionId) return;
+
+    const connectionChannel = supabase
+      .channel(`connection:${connectionId}:updates`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'connections',
+          filter: `id=eq.${connectionId}`,
+        },
+        (payload) => {
+          console.log('[Chat] Connection updated:', payload.new);
+          setConnection(payload.new);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(connectionChannel);
+    };
+  }, [connectionId]);
 
   const loadConnectionAndUser = async () => {
     try {
@@ -133,6 +223,7 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
         .from('messages')
         .select('*')
         .eq('connection_id', connectionId)
+        .is('archived_at', null)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
@@ -195,7 +286,10 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
 
     try {
       // Store location data as JSON string in content
-      const content = JSON.stringify(locationData);
+      const content = JSON.stringify({
+        ...locationData,
+        status: 'pending',
+      });
 
       const { data, error } = await supabase
         .from('messages')
@@ -225,16 +319,289 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
     }
   };
 
-  // Parse message content to detect location proposals
-  const parseMessageContent = (content: string) => {
+  const sendTimeProposal = async (timeData: any) => {
+    if (!currentUser || sending) return;
+
+    setSending(true);
+
     try {
-      const parsed = JSON.parse(content);
-      if (parsed.type === 'location') {
+      const content = JSON.stringify({
+        ...timeData,
+        status: 'pending',
+      });
+
+      const { data, error } = await supabase
+        .from('messages')
+        .insert({
+          connection_id: connectionId,
+          sender_id: currentUser.id,
+          content: content,
+          is_system_message: false,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setMessages((prev) => [...prev, data as Message]);
+
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    } catch (error: any) {
+      console.error('Error sending time proposal:', error);
+      Alert.alert('Error', 'Failed to send time proposal. Please try again.');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleAcceptLocationProposal = async (
+    messageId: string,
+    locationData: any
+  ) => {
+    if (!currentUser) return;
+
+    try {
+      const meetLocationPayload = {
+        name: locationData.location_name,
+        address: locationData.location_address,
+        coordinates: locationData.location_coordinates,
+      };
+
+      const { error: connError } = await supabase
+        .from('connections')
+        .update({
+          meet_location: JSON.stringify(meetLocationPayload),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', connectionId);
+
+      if (connError) throw connError;
+
+      const updatedContent = {
+        ...locationData,
+        status: 'accepted',
+      };
+
+      const { error: messageError } = await supabase
+        .from('messages')
+        .update({
+          content: JSON.stringify(updatedContent),
+        })
+        .eq('id', messageId);
+
+      if (messageError) throw messageError;
+
+      setConnection((prev: any) =>
+        prev
+          ? {
+              ...prev,
+              meet_location: JSON.stringify(meetLocationPayload),
+            }
+          : prev
+      );
+
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId
+            ? {
+                ...msg,
+                content: JSON.stringify(updatedContent),
+              }
+            : msg
+        )
+      );
+    } catch (error) {
+      console.error('Error accepting location proposal:', error);
+      Alert.alert('Error', 'Failed to accept location. Please try again.');
+    }
+  };
+
+  const handleAcceptTimeProposal = async (messageId: string, isoTime: string) => {
+    if (!currentUser) return;
+
+    try {
+      const { error: connError } = await supabase
+        .from('connections')
+        .update({
+          meet_time: isoTime,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', connectionId);
+
+      if (connError) throw connError;
+
+      const updatedContent = {
+        type: 'time',
+        iso_time: isoTime,
+        status: 'accepted',
+      };
+
+      const { error: messageError } = await supabase
+        .from('messages')
+        .update({
+          content: JSON.stringify(updatedContent),
+        })
+        .eq('id', messageId);
+
+      if (messageError) throw messageError;
+
+      setConnection((prev: any) =>
+        prev
+          ? {
+              ...prev,
+              meet_time: isoTime,
+            }
+          : prev
+      );
+
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId
+            ? {
+                ...msg,
+                content: JSON.stringify(updatedContent),
+              }
+            : msg
+        )
+      );
+    } catch (error) {
+      console.error('Error accepting time proposal:', error);
+      Alert.alert('Error', 'Failed to accept time. Please try again.');
+    }
+  };
+
+  const handleConfirmMeetup = async () => {
+    if (!currentUser || !connectionMeetTime || !connectionMeetLocation) return;
+    setConfirming(true);
+    try {
+      const { error: connError } = await supabase
+        .from('connections')
+        .update({
+          is_confirmed: true,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', connectionId);
+
+      if (connError) throw connError;
+
+      const date = new Date(connectionMeetTime);
+      const timeString = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const dateString = date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+
+      await supabase.from('messages').insert({
+        connection_id: connectionId,
+        sender_id: currentUser.id,
+        content: `Meetup confirmed for ${dateString} at ${timeString}${
+          meetLocationName ? ` · ${meetLocationName}` : ''
+        }.`,
+        is_system_message: true,
+      });
+
+      setConnection((prev: any) =>
+        prev
+          ? {
+              ...prev,
+              is_confirmed: true,
+              status: 'accepted',
+            }
+          : prev
+      );
+    } catch (error) {
+      console.error('Error confirming meetup:', error);
+      Alert.alert('Error', 'Failed to confirm meetup. Please try again.');
+    } finally {
+      setConfirming(false);
+    }
+  };
+
+  const handleCancelMeetup = async (reason: string) => {
+    if (!currentUser) return;
+    setCanceling(true);
+    try {
+      const { error: connError } = await supabase
+        .from('connections')
+        .update({
+          status: 'cancelled',
+          is_confirmed: false,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', connectionId);
+
+      if (connError) throw connError;
+
+      const datePart =
+        connectionMeetTime && !isMeetupCancelled
+          ? (() => {
+              const date = new Date(connectionMeetTime);
+              const dateString = date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+              const timeString = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              return `${dateString} at ${timeString}`;
+            })()
+          : null;
+
+      const locationPart = meetLocationName ? ` · ${meetLocationName}` : '';
+      const reasonPart = reason ? ` Reason: ${reason}` : '';
+
+      await supabase.from('messages').insert({
+        connection_id: connectionId,
+        sender_id: currentUser.id,
+        content: `Meetup cancelled${datePart ? ` (${datePart}${locationPart})` : ''}.${reasonPart}`,
+        is_system_message: true,
+      });
+
+      setConnection((prev: any) =>
+        prev
+          ? {
+              ...prev,
+              status: 'cancelled',
+              is_confirmed: false,
+            }
+          : prev
+      );
+    } catch (error) {
+      console.error('Error cancelling meetup:', error);
+      Alert.alert('Error', 'Failed to cancel meetup. Please try again.');
+    } finally {
+      setCanceling(false);
+      setShowCancelModal(false);
+    }
+  };
+
+  // Parse message content to detect special messages
+  const parseMessageContent = (content: any) => {
+    const parseJSON = (value: string) => {
+      try {
+        return JSON.parse(value);
+      } catch {
+        return null;
+      }
+    };
+
+    if (!content) return null;
+
+    if (typeof content === 'object') {
+      return content?.type ? content : null;
+    }
+
+    if (typeof content !== 'string') return null;
+
+    // Try direct parse
+    let parsed = parseJSON(content.trim());
+    if (parsed?.type) {
+      return parsed;
+    }
+
+    // Handle double-encoded JSON (e.g., "\"{...}\"")
+    if (content.startsWith('"') && content.endsWith('"')) {
+      const unwrapped = content.slice(1, -1).replace(/\\"/g, '"');
+      parsed = parseJSON(unwrapped);
+      if (parsed?.type) {
         return parsed;
       }
-    } catch (e) {
-      // Not JSON, treat as regular text
     }
+
     return null;
   };
 
@@ -298,10 +665,19 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
                 );
               }
 
-              // Check if message is a location proposal
-              const locationData = parseMessageContent(message.content);
+              const parsedContent = parseMessageContent(message.content);
 
-              if (locationData) {
+              if (parsedContent?.type === 'location') {
+                const locationMatchesConnection =
+                  !!connectionMeetLocation &&
+                  (connectionMeetLocation.name === parsedContent.location_name ||
+                    connectionMeetLocation.location_name === parsedContent.location_name) &&
+                  (!connectionMeetLocation.address ||
+                    connectionMeetLocation.address === parsedContent.location_address);
+                const locationStatus =
+                  parsedContent.status ||
+                  (locationMatchesConnection ? 'accepted' : 'pending');
+
                 return (
                   <View
                     key={message.id}
@@ -324,14 +700,63 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
                       </View>
                     )}
                     <LocationMessageCard
-                      locationData={locationData}
+                      locationData={parsedContent}
                       isMe={isMe}
+                      status={locationStatus}
                       onAccept={() => {
-                        // TODO: Implement accept location functionality (Story 29)
-                        Alert.alert('Location Accepted', 'You can now confirm this meetup.');
+                        handleAcceptLocationProposal(message.id, parsedContent);
                       }}
                       onProposeAlternative={() => {
                         setShowLocationPicker(true);
+                      }}
+                    />
+                  </View>
+                );
+              }
+
+              if (parsedContent?.type === 'time') {
+                const normalizedMessageTime = (() => {
+                  try {
+                    return new Date(parsedContent.iso_time).toISOString();
+                  } catch {
+                    return parsedContent.iso_time;
+                  }
+                })();
+
+                const timeStatus =
+                  parsedContent.status ||
+                  (connectionMeetTime && normalizedMessageTime === connectionMeetTime ? 'accepted' : 'pending');
+
+                return (
+                  <View
+                    key={message.id}
+                    style={[
+                      styles.messageContainer,
+                      isMe ? styles.myMessageContainer : styles.otherMessageContainer,
+                    ]}
+                  >
+                    {!isMe && otherUser?.photo_url && (
+                      <Image
+                        source={{ uri: otherUser.photo_url }}
+                        style={styles.avatar}
+                      />
+                    )}
+                    {!isMe && !otherUser?.photo_url && (
+                      <View style={styles.avatar}>
+                        <Text style={styles.avatarText}>
+                          {otherUser?.full_name?.charAt(0).toUpperCase() || '?'}
+                        </Text>
+                      </View>
+                    )}
+                    <TimeMessageCard
+                      timeData={parsedContent}
+                      isMe={isMe}
+                      status={timeStatus}
+                      onAccept={() => {
+                        handleAcceptTimeProposal(message.id, parsedContent.iso_time);
+                      }}
+                      onProposeAlternative={() => {
+                        setShowTimePicker(true);
                       }}
                     />
                   </View>
@@ -398,6 +823,55 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
             <Text style={styles.suggestLocationIcon}>📍</Text>
             <Text style={styles.suggestLocationText}>Suggest Location</Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.suggestTimeButton}
+            onPress={() => setShowTimePicker(true)}
+          >
+            <Text style={styles.suggestTimeIcon}>⏰</Text>
+            <Text style={styles.suggestTimeText}>Suggest Time</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.confirmationContainer}>
+          {isMeetupCancelled ? (
+            <View style={[styles.confirmationBanner, styles.cancelledBanner]}>
+              <Text style={styles.confirmationTitle}>Meetup cancelled ❌</Text>
+              <Text style={styles.confirmationDetails}>You can suggest a new time or location if plans change.</Text>
+            </View>
+          ) : isMeetupConfirmed && confirmedMeetupDescription ? (
+            <View style={[styles.confirmationBanner, styles.confirmedBanner]}>
+              <Text style={styles.confirmationTitle}>Meetup Confirmed ✅</Text>
+              <Text style={styles.confirmationDetails}>{confirmedMeetupDescription}</Text>
+              <TouchableOpacity
+                style={styles.cancelLink}
+                onPress={() => setShowCancelModal(true)}
+                disabled={canceling}
+              >
+                <Text style={styles.cancelLinkText}>{canceling ? 'Cancelling…' : 'Cancel meetup'}</Text>
+              </TouchableOpacity>
+            </View>
+          ) : canConfirmMeetup ? (
+            <TouchableOpacity
+              style={[styles.confirmationBanner, styles.confirmButton]}
+              onPress={handleConfirmMeetup}
+              disabled={confirming}
+            >
+              <Text style={styles.confirmationTitle}>Everything agreed?</Text>
+              <Text style={styles.confirmationDetails}>
+                Confirm the meetup so it shows in Today&apos;s Plans for both of you.
+              </Text>
+              <View style={styles.confirmButtonRow}>
+                <Text style={styles.confirmButtonText}>{confirming ? 'Confirming…' : 'Confirm meetup'}</Text>
+              </View>
+            </TouchableOpacity>
+          ) : canShowPendingBanner ? (
+            <View style={[styles.confirmationBanner, styles.pendingBanner]}>
+              <Text style={styles.confirmationTitle}>Waiting to confirm</Text>
+              <Text style={styles.confirmationDetails}>
+                Accept a location and time to enable meetup confirmation.
+              </Text>
+            </View>
+          ) : null}
         </View>
 
         {/* Input */}
@@ -431,6 +905,17 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
           visible={showLocationPicker}
           onClose={() => setShowLocationPicker(false)}
           onSelect={sendLocationProposal}
+        />
+        <TimePicker
+          visible={showTimePicker}
+          onClose={() => setShowTimePicker(false)}
+          onSelect={sendTimeProposal}
+        />
+        <CancelMeetupModal
+          visible={showCancelModal}
+          onClose={() => !canceling && setShowCancelModal(false)}
+          onConfirm={handleCancelMeetup}
+          isSubmitting={canceling}
         />
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -558,6 +1043,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderTopWidth: 1,
     borderTopColor: '#e5e7eb',
+    flexDirection: 'row',
+    gap: 12,
+    flexWrap: 'wrap',
   },
   suggestLocationButton: {
     flexDirection: 'row',
@@ -578,6 +1066,79 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#374151',
+  },
+  suggestTimeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f3f4f6',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    alignSelf: 'flex-start',
+  },
+  suggestTimeIcon: {
+    fontSize: 18,
+    marginRight: 8,
+  },
+  suggestTimeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  confirmationContainer: {
+    paddingHorizontal: 12,
+    paddingBottom: 8,
+    backgroundColor: '#ffffff',
+  },
+  confirmationBanner: {
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  confirmedBanner: {
+    backgroundColor: '#ecfdf5',
+    borderColor: '#34d399',
+  },
+  pendingBanner: {
+    backgroundColor: '#f9fafb',
+  },
+  confirmButton: {
+    backgroundColor: '#10b981',
+    borderColor: '#10b981',
+  },
+  confirmationTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  confirmationDetails: {
+    fontSize: 13,
+    color: '#6b7280',
+  },
+  confirmButtonRow: {
+    marginTop: 12,
+    alignItems: 'center',
+  },
+  confirmButtonText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  cancelledBanner: {
+    backgroundColor: '#fef2f2',
+    borderColor: '#f87171',
+  },
+  cancelLink: {
+    marginTop: 12,
+  },
+  cancelLinkText: {
+    color: '#ef4444',
+    fontSize: 14,
+    fontWeight: '600',
   },
   inputContainer: {
     flexDirection: 'row',

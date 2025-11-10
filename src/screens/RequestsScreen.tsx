@@ -16,6 +16,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useFocusEffect } from '@react-navigation/native';
 import { ChatsStackParamList } from '../navigation/ChatsStackNavigator';
+import { useNotifications } from '../hooks/useNotifications';
 
 type RequestsScreenProps = NativeStackScreenProps<ChatsStackParamList, 'Requests'>;
 
@@ -41,6 +42,7 @@ export default function RequestsScreen({ navigation }: RequestsScreenProps) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const { markRequestNotificationsAsRead } = useNotifications();
 
   const loadRequests = useCallback(async () => {
     if (!user) return;
@@ -107,7 +109,8 @@ export default function RequestsScreen({ navigation }: RequestsScreenProps) {
   useFocusEffect(
     useCallback(() => {
       loadRequests();
-    }, [loadRequests])
+      markRequestNotificationsAsRead();
+    }, [loadRequests, markRequestNotificationsAsRead])
   );
 
   const handleAccept = async (requestId: string, requesterId: string) => {
@@ -141,6 +144,7 @@ export default function RequestsScreen({ navigation }: RequestsScreenProps) {
 
       // Remove from local state
       setRequests(prev => prev.filter(req => req.id !== requestId));
+      await markRequestNotificationsAsRead();
 
       // Navigate directly to chat (no alert, as per PRD: "Chat opens automatically on accept")
       navigation?.navigate('Chat', { connectionId: requestId, userId: requesterId });
@@ -181,6 +185,7 @@ export default function RequestsScreen({ navigation }: RequestsScreenProps) {
 
               // Remove from local state
               setRequests(prev => prev.filter(req => req.id !== requestId));
+              await markRequestNotificationsAsRead();
 
               Alert.alert('Request Declined', 'The connection request has been declined.');
             } catch (error: any) {

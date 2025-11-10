@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Alert,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { useLocation } from '../hooks/useLocation';
 
@@ -33,6 +34,7 @@ export function LocationPicker({ visible, onClose, onSelect }: LocationPickerPro
   const [address, setAddress] = useState('');
   const [lat, setLat] = useState('');
   const [lng, setLng] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const handleSuggestCommon = (locationInfo: { name: string; address: string; lat: number; lng: number }) => {
     const locationData: LocationData = {
@@ -50,7 +52,9 @@ export function LocationPicker({ visible, onClose, onSelect }: LocationPickerPro
     onClose();
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (submitting) return;
+
     if (!locationName.trim()) {
       Alert.alert('Error', 'Please enter a location name');
       return;
@@ -61,33 +65,81 @@ export function LocationPicker({ visible, onClose, onSelect }: LocationPickerPro
       return;
     }
 
-    // Use provided coordinates or current location
-    let coordinates;
-    if (lat && lng) {
-      coordinates = {
-        lat: parseFloat(lat),
-        lng: parseFloat(lng),
+    setSubmitting(true);
+
+    try {
+      // Use provided coordinates, current location, or geocode the address
+      let coordinates: { lat: number; lng: number } | null = null;
+
+      if (lat && lng) {
+        coordinates = {
+          lat: parseFloat(lat),
+          lng: parseFloat(lng),
+        };
+      } else {
+        // Try geocoding the address first
+        try {
+          const query = encodeURIComponent(`${locationName} ${address}`);
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/search?format=json&q=${query}`,
+            {
+              headers: {
+                'User-Agent': 'here-now-mobile/1.0',
+                Accept: 'application/json',
+              },
+            }
+          );
+          const results = await response.json();
+
+          if (Array.isArray(results) && results.length > 0) {
+            coordinates = {
+              lat: parseFloat(results[0].lat),
+              lng: parseFloat(results[0].lon),
+            };
+          }
+        } catch (error) {
+          console.error('Geocoding error:', error);
+          // We'll fallback to current location if available, otherwise show error below
+        }
+
+        // If geocoding failed, fallback to current device location
+        if (!coordinates && location) {
+          coordinates = {
+            lat: location.latitude,
+            lng: location.longitude,
+          };
+        }
+
+        if (!coordinates) {
+          Alert.alert(
+            'Location Not Found',
+            'Unable to determine coordinates for that address. Please add latitude and longitude manually.'
+          );
+          return;
+        }
+      }
+
+      if (!coordinates) {
+        Alert.alert(
+          'Error',
+          'Unable to determine coordinates. Please provide latitude and longitude manually.'
+        );
+        return;
+      }
+
+      const locationData: LocationData = {
+        type: 'location',
+        location_name: locationName.trim(),
+        location_address: address.trim(),
+        location_coordinates: coordinates,
       };
-    } else if (location) {
-      coordinates = {
-        lat: location.latitude,
-        lng: location.longitude,
-      };
-    } else {
-      Alert.alert('Error', 'Please provide coordinates or enable location services');
-      return;
+
+      onSelect(locationData);
+      resetForm();
+      onClose();
+    } finally {
+      setSubmitting(false);
     }
-
-    const locationData: LocationData = {
-      type: 'location',
-      location_name: locationName.trim(),
-      location_address: address.trim(),
-      location_coordinates: coordinates,
-    };
-
-    onSelect(locationData);
-    resetForm();
-    onClose();
   };
 
   const resetForm = () => {
@@ -205,8 +257,16 @@ export function LocationPicker({ visible, onClose, onSelect }: LocationPickerPro
         </ScrollView>
 
         <View style={styles.footer}>
-          <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-            <Text style={styles.submitButtonText}>Suggest Location</Text>
+          <TouchableOpacity
+            style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
+            onPress={handleSubmit}
+            disabled={submitting}
+          >
+            {submitting ? (
+              <ActivityIndicator color="#ffffff" />
+            ) : (
+              <Text style={styles.submitButtonText}>Suggest Location</Text>
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -320,6 +380,9 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
+  },
+  submitButtonDisabled: {
+    opacity: 0.7,
   },
   submitButtonText: {
     color: '#ffffff',

@@ -14,11 +14,12 @@ interface LocationData {
 interface LocationMessageCardProps {
   locationData: LocationData;
   isMe: boolean;
+  status?: 'pending' | 'accepted';
   onAccept?: () => void;
   onProposeAlternative?: () => void;
 }
 
-export function LocationMessageCard({ locationData, isMe, onAccept, onProposeAlternative }: LocationMessageCardProps) {
+export function LocationMessageCard({ locationData, isMe, status = 'pending', onAccept, onProposeAlternative }: LocationMessageCardProps) {
   const handleOpenMaps = async () => {
     const { lat, lng } = locationData.location_coordinates;
     const locationName = encodeURIComponent(locationData.location_name);
@@ -71,7 +72,12 @@ export function LocationMessageCard({ locationData, isMe, onAccept, onProposeAlt
         <TouchableOpacity style={styles.mapButton} onPress={handleOpenMaps}>
           <Text style={styles.mapButtonText}>Open in Maps</Text>
         </TouchableOpacity>
-        {!isMe && (
+        {status === 'accepted' && (
+          <View style={styles.statusTag}>
+            <Text style={styles.statusTagText}>Accepted ✅</Text>
+          </View>
+        )}
+        {status === 'pending' && !isMe && (
           <View style={styles.actionButtons}>
             {onAccept && (
               <TouchableOpacity style={styles.acceptButton} onPress={onAccept}>
@@ -147,6 +153,21 @@ const styles = StyleSheet.create({
   mapButtonText: {
     color: '#ffffff',
     fontSize: 14,
+    fontWeight: '600',
+  },
+  statusTag: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    backgroundColor: '#ecfdf5',
+    borderWidth: 1,
+    borderColor: '#34d399',
+    borderRadius: 12,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+  },
+  statusTagText: {
+    color: '#065f46',
+    fontSize: 12,
     fontWeight: '600',
   },
   actionButtons: {
