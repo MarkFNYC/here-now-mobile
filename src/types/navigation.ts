@@ -1,5 +1,5 @@
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { CompositeNavigationProp } from '@react-navigation/native';
+import { CompositeNavigationProp, NavigatorScreenParams } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 // Root Stack Navigator
@@ -9,18 +9,42 @@ export type RootStackParamList = {
   Main: undefined;
 };
 
-// Main Tab Navigator
-export type MainTabParamList = {
-  Home: undefined;
-  Activities: undefined;
-  Chats: undefined;
-  Profile: undefined;
-};
-
 // Home Stack Navigator
 export type HomeStackParamList = {
   HomeFeed: undefined;
   UserProfile: { userId: string };
+};
+
+// Chats Stack Navigator
+export type ChatsStackParamList = {
+  ChatsList: undefined;
+  Requests: undefined;
+  Chat: { connectionId: string; userId: string };
+};
+
+// Profile Stack Navigator
+export type ProfileStackParamList = {
+  ProfileMain: undefined;
+  NotificationSettings: undefined;
+  EditPhoto: { editMode: boolean };
+  EditBio: { editMode: boolean };
+  EditNeighbourhood: { editMode: boolean };
+};
+
+// Activities Stack Navigator
+export type ActivitiesStackParamList = {
+  ActivitiesList: undefined;
+  ActivityDetail: { activityId: string };
+  ActivityChat: { activityId: string };
+};
+
+// Main Tab Navigator
+export type MainTabParamList = {
+  Home: NavigatorScreenParams<HomeStackParamList> | undefined;
+  Plans: undefined;
+  Activities: NavigatorScreenParams<ActivitiesStackParamList> | undefined;
+  Chats: NavigatorScreenParams<ChatsStackParamList> | undefined;
+  Profile: NavigatorScreenParams<ProfileStackParamList> | undefined;
 };
 
 // Auth Stack Navigator
@@ -39,21 +63,28 @@ export type ProfileCreationStackParamList = {
   Neighbourhood: { editMode?: boolean };
 };
 
-// Profile Stack Navigator
-export type ProfileStackParamList = {
-  Profile: undefined;
-  NotificationSettings: undefined;
-};
-
 // Navigation prop types
 export type HomeScreenNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabParamList, 'Home'>,
   NativeStackNavigationProp<RootStackParamList>
 >;
 
+export type PlansScreenNavigationProp = CompositeNavigationProp<
+  BottomTabNavigationProp<MainTabParamList, 'Plans'>,
+  NativeStackNavigationProp<RootStackParamList>
+>;
+
 export type ActivitiesScreenNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabParamList, 'Activities'>,
   NativeStackNavigationProp<RootStackParamList>
+>;
+
+export type ActivityDetailScreenNavigationProp = CompositeNavigationProp<
+  NativeStackNavigationProp<ActivitiesStackParamList, 'ActivityDetail'>,
+  CompositeNavigationProp<
+    BottomTabNavigationProp<MainTabParamList, 'Activities'>,
+    NativeStackNavigationProp<RootStackParamList>
+  >
 >;
 
 export type ChatsScreenNavigationProp = CompositeNavigationProp<

@@ -5,7 +5,8 @@ import { MainTabParamList } from '../types/navigation';
 
 // Import screens (we'll create these next)
 import HomeStackNavigator from './HomeStackNavigator';
-import ActivitiesScreen from '../screens/ActivitiesScreen';
+import PlansScreen from '../screens/PlansScreen';
+import ActivitiesStackNavigator from './ActivitiesStackNavigator';
 import ChatsStackNavigator from './ChatsStackNavigator';
 import ProfileStackNavigator from './ProfileStackNavigator';
 
@@ -37,8 +38,18 @@ export default function MainNavigator() {
         }}
       />
       <Tab.Screen
+        name="Plans"
+        component={PlansScreen}
+        options={{
+          tabBarLabel: "Today's Plans",
+          tabBarIcon: ({ color, size }) => (
+            <TabIcon name="plans" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tab.Screen
         name="Activities"
-        component={ActivitiesScreen}
+        component={ActivitiesStackNavigator}
         options={{
           tabBarLabel: 'Activities',
           tabBarIcon: ({ color, size }) => (
@@ -74,6 +85,7 @@ export default function MainNavigator() {
 function TabIcon({ name, color, size }: { name: string; color: string; size: number }) {
   const icons: { [key: string]: string } = {
     home: '🏠',
+    plans: '📍',
     calendar: '📅',
     message: '💬',
     user: '👤',

@@ -219,17 +219,49 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
   const loadMessages = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('connection_id', connectionId)
-        .is('archived_at', null)
-        .order('created_at', { ascending: true });
+      const fetchMessages = async (includeArchiveFilter: boolean) => {
+        let query = supabase
+          .from('messages')
+          .select('*')
+          .eq('connection_id', connectionId)
+          .order('created_at', { ascending: true });
 
-      if (error) throw error;
+        if (includeArchiveFilter) {
+          query = query.is('archived_at', null);
+        }
 
-      setMessages(data || []);
-      
+        return query;
+      };
+
+      const { data, error } = await fetchMessages(true);
+
+      if (error) {
+        const needsFallback =
+          error.code === '42703' ||
+          error.hint?.includes('archived_at') ||
+          error.details?.includes('archived_at') ||
+          error.message?.toLowerCase().includes('archived_at');
+
+        if (needsFallback) {
+          console.warn(
+            '[Chat] archived_at column missing, falling back to legacy query. Run migration 00009_midnight_reset.sql to enable daily message archive.',
+            error
+          );
+
+          const { data: fallbackData, error: fallbackError } = await fetchMessages(false);
+
+          if (fallbackError) {
+            throw fallbackError;
+          }
+
+          setMessages(fallbackData || []);
+        } else {
+          throw error;
+        }
+      } else {
+        setMessages(data || []);
+      }
+
       // Auto-scroll to bottom after loading
       setTimeout(() => {
         scrollViewRef.current?.scrollToEnd({ animated: false });
