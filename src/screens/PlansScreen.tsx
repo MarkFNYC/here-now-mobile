@@ -257,7 +257,7 @@ export default function PlansScreen({ navigation }: PlansScreenProps) {
       // Process 1:1 connections
       const connectionPlans: Plan[] =
         connectionsData
-          ?.map((connection: RawConnection) => {
+          ?.map((connection: RawConnection): Plan | null => {
             if (!connection.meet_time) return null;
             const meetTime = new Date(connection.meet_time);
             const isSameDay =
@@ -315,6 +315,7 @@ export default function PlansScreen({ navigation }: PlansScreenProps) {
               activityId: activity.id,
             };
           })
+          .filter((plan): plan is Plan => plan !== null)
           .filter((plan): plan is Plan => plan !== null) ?? [];
 
       // Combine and sort by time
@@ -325,7 +326,7 @@ export default function PlansScreen({ navigation }: PlansScreenProps) {
       setPlans(allPlans);
     } catch (err) {
       console.error('Error loading plans:', err);
-      Alert.alert('Error', 'Failed to load today's plans. Please try again.');
+      Alert.alert('Error', 'Failed to load today\'s plans. Please try again.');
     } finally {
       setLoading(false);
       setRefreshing(false);

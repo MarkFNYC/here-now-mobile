@@ -26,7 +26,6 @@ export default function ChatsStackNavigator() {
         options={{
           headerShown: true,
           title: 'Connection Requests',
-          headerBackTitleVisible: false,
         }}
       />
       <Stack.Screen 
@@ -35,7 +34,6 @@ export default function ChatsStackNavigator() {
         options={{
           headerShown: true,
           title: 'Chat',
-          headerBackTitleVisible: false,
         }}
       />
     </Stack.Navigator>

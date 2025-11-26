@@ -220,6 +220,44 @@ export interface Database {
           created_at?: string
         }
       }
+      reports: {
+        Row: {
+          id: string
+          reporter_id: string
+          reported_user_id: string
+          reason: string
+          details: string | null
+          status: string
+          admin_notes: string | null
+          reviewed_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          reporter_id: string
+          reported_user_id: string
+          reason: string
+          details?: string | null
+          status?: string
+          admin_notes?: string | null
+          reviewed_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          reporter_id?: string
+          reported_user_id?: string
+          reason?: string
+          details?: string | null
+          status?: string
+          admin_notes?: string | null
+          reviewed_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
     Functions: {
       get_nearby_users: {

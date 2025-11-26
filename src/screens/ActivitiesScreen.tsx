@@ -80,7 +80,7 @@ export default function ActivitiesScreen({ navigation }: ActivitiesScreenProps) 
       console.log('[Activities] After time filter:', activeActivities.length, 'activities');
 
       // Sort by start time, then distance
-      activeActivities.sort((a, b) => {
+      activeActivities.sort((a: any, b: any) => {
         const timeDiff = new Date(a.start_time).getTime() - new Date(b.start_time).getTime();
         if (timeDiff !== 0) return timeDiff;
         return a.distance_km - b.distance_km;
@@ -411,5 +411,16 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#6b7280',
   },
 });

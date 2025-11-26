@@ -15,6 +15,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { HomeStackParamList } from '../types/navigation';
+import { BlockButton } from '../components/BlockButton';
+import { ReportForm } from '../components/ReportForm';
 
 type UserProfileScreenProps = NativeStackScreenProps<HomeStackParamList, 'UserProfile'>;
 
@@ -35,6 +37,7 @@ export default function UserProfileScreen({ route, navigation }: UserProfileScre
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'none' | 'pending' | 'accepted' | 'declined'>('none');
+  const [showReportForm, setShowReportForm] = useState(false);
 
   const checkConnectionStatus = useCallback(async () => {
     if (!currentUser) return;
@@ -292,6 +295,30 @@ export default function UserProfileScreen({ route, navigation }: UserProfileScre
             </View>
           )}
         </View>
+
+        {/* Safety Actions */}
+        <View style={styles.safetySection}>
+          <TouchableOpacity
+            style={styles.reportButton}
+            onPress={() => setShowReportForm(true)}
+          >
+            <Text style={styles.reportButtonText}>Report User</Text>
+          </TouchableOpacity>
+          <BlockButton
+            userId={userId}
+            userName={profile.full_name}
+            onBlocked={() => navigation.goBack()}
+            variant="danger"
+          />
+        </View>
+
+        {/* Report Form Modal */}
+        <ReportForm
+          visible={showReportForm}
+          userId={userId}
+          userName={profile.full_name}
+          onClose={() => setShowReportForm(false)}
+        />
       </ScrollView>
     </SafeAreaView>
   );
@@ -505,6 +532,27 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.6,
+  },
+  safetySection: {
+    padding: 20,
+    backgroundColor: '#ffffff',
+    marginTop: 8,
+    gap: 12,
+  },
+  reportButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#f59e0b',
+  },
+  reportButtonText: {
+    color: '#f59e0b',
+    fontSize: 15,
+    fontWeight: '600',
   },
 });
 

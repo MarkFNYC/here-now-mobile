@@ -23,6 +23,8 @@ import { LocationMessageCard } from '../components/LocationMessageCard';
 import { TimePicker } from '../components/TimePicker';
 import { TimeMessageCard } from '../components/TimeMessageCard';
 import { CancelMeetupModal } from '../components/CancelMeetupModal';
+import { BlockButton } from '../components/BlockButton';
+import { ReportForm } from '../components/ReportForm';
 
 type ChatScreenProps = NativeStackScreenProps<ChatsStackParamList, 'Chat'>;
 
@@ -46,6 +48,8 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
   const [confirming, setConfirming] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [canceling, setCanceling] = useState(false);
+  const [showReportForm, setShowReportForm] = useState(false);
+  const [showSafetyMenu, setShowSafetyMenu] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
   const channelRef = useRef<any>(null);
   const connectionMeetLocation = useMemo(() => {
@@ -206,9 +210,17 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
       if (userError) throw userError;
       setOtherUser(userData);
 
-      // Set navigation title
+      // Set navigation title and header right button
       navigation.setOptions({
         title: userData?.full_name || 'Chat',
+        headerRight: () => (
+          <TouchableOpacity
+            onPress={() => setShowSafetyMenu(!showSafetyMenu)}
+            style={{ paddingRight: 16 }}
+          >
+            <Text style={{ fontSize: 20 }}>⋯</Text>
+          </TouchableOpacity>
+        ),
       });
     } catch (error: any) {
       console.error('Error loading connection/user:', error);
@@ -846,6 +858,33 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
           )}
         </ScrollView>
 
+        {/* Safety Menu */}
+        {showSafetyMenu && otherUser && (
+          <View style={styles.safetyMenuContainer}>
+            <TouchableOpacity
+              style={styles.safetyMenuItem}
+              onPress={() => {
+                setShowReportForm(true);
+                setShowSafetyMenu(false);
+              }}
+            >
+              <Text style={styles.safetyMenuText}>Report User</Text>
+            </TouchableOpacity>
+            <View style={styles.safetyMenuDivider} />
+            <View style={styles.safetyMenuItem}>
+              <BlockButton
+                userId={otherUserId}
+                userName={otherUser.full_name}
+                onBlocked={() => {
+                  setShowSafetyMenu(false);
+                  navigation.goBack();
+                }}
+                variant="default"
+              />
+            </View>
+          </View>
+        )}
+
         {/* Action Buttons Above Input */}
         <View style={styles.actionButtonsContainer}>
           <TouchableOpacity
@@ -949,6 +988,14 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
           onConfirm={handleCancelMeetup}
           isSubmitting={canceling}
         />
+        {otherUser && (
+          <ReportForm
+            visible={showReportForm}
+            userId={otherUserId}
+            userName={otherUser.full_name}
+            onClose={() => setShowReportForm(false)}
+          />
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -1170,6 +1217,27 @@ const styles = StyleSheet.create({
   cancelLinkText: {
     color: '#ef4444',
     fontSize: 14,
+    fontWeight: '600',
+  },
+  safetyMenuContainer: {
+    backgroundColor: '#ffffff',
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  safetyMenuItem: {
+    paddingVertical: 12,
+  },
+  safetyMenuText: {
+    fontSize: 15,
+    color: '#f59e0b',
+    fontWeight: '600',
+  },
+  safetyMenuDivider: {
+    height: 1,
+    backgroundColor: '#e5e7eb',
+    marginVertical: 8,
     fontWeight: '600',
   },
   inputContainer: {

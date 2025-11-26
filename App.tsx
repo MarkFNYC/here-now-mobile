@@ -10,21 +10,23 @@ import ProfileCreationNavigator from './src/navigation/ProfileCreationNavigator'
 import LoginScreen from './src/screens/LoginScreen';
 import SignUpScreen from './src/screens/SignUpScreen';
 import AuthCallbackScreen from './src/screens/AuthCallbackScreen';
-import { RootStackParamList } from './src/types/navigation';
+import { RootStackParamList, AuthStackParamList } from './src/types/navigation';
+import { hasValidCredentials } from './src/lib/supabase';
 
-const Stack = createNativeStackNavigator<RootStackParamList>();
+const RootStack = createNativeStackNavigator<RootStackParamList>();
+const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 
-function AuthStack() {
+function AuthStackNavigator() {
   return (
-    <Stack.Navigator
+    <AuthStack.Navigator
       screenOptions={{
         headerShown: false,
       }}
     >
-      <Stack.Screen name="Login" component={LoginScreen} />
-      <Stack.Screen name="SignUp" component={SignUpScreen} />
-      <Stack.Screen name="AuthCallback" component={AuthCallbackScreen} />
-    </Stack.Navigator>
+      <AuthStack.Screen name="Login" component={LoginScreen} />
+      <AuthStack.Screen name="Signup" component={SignUpScreen} />
+      <AuthStack.Screen name="AuthCallback" component={AuthCallbackScreen} />
+    </AuthStack.Navigator>
   );
 }
 
@@ -67,7 +69,7 @@ function AppContent() {
   }
 
   if (!user) {
-    return <AuthStack />;
+    return <AuthStackNavigator />;
   }
 
   // Check if profile is complete
@@ -81,16 +83,24 @@ function AppContent() {
 export default function App() {
   console.log('[App] Starting app...');
   
-  // Check if Supabase env vars are set
-  if (!process.env.EXPO_PUBLIC_SUPABASE_URL || !process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY) {
-    console.error('[App] Missing Supabase environment variables!');
+  // Check if Supabase credentials are valid
+  if (!hasValidCredentials()) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f9fafb', padding: 20 }}>
         <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#ef4444', marginBottom: 10 }}>
           Configuration Error
         </Text>
-        <Text style={{ color: '#6b7280', textAlign: 'center' }}>
-          Missing Supabase credentials. Please check your .env file.
+        <Text style={{ color: '#6b7280', textAlign: 'center', marginBottom: 10 }}>
+          Missing Supabase credentials. Please check:
+        </Text>
+        <Text style={{ color: '#9ca3af', textAlign: 'center', fontSize: 12, marginBottom: 4 }}>
+          • .env file exists with EXPO_PUBLIC_SUPABASE_URL
+        </Text>
+        <Text style={{ color: '#9ca3af', textAlign: 'center', fontSize: 12 }}>
+          • EXPO_PUBLIC_SUPABASE_ANON_KEY is set
+        </Text>
+        <Text style={{ color: '#9ca3af', textAlign: 'center', fontSize: 10, marginTop: 20 }}>
+          Check the browser console for detailed error messages
         </Text>
       </View>
     );
@@ -100,15 +110,6 @@ export default function App() {
     // Configure deep linking for web callbacks
     const linking = {
       prefixes: ['herenow://', 'http://localhost:8081', 'https://localhost:8081'],
-      config: {
-        screens: {
-          Auth: {
-            screens: {
-              AuthCallback: 'auth/callback',
-            },
-          },
-        },
-      },
     };
 
     return (

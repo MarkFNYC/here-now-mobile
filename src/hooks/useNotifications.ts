@@ -50,7 +50,7 @@ export function useNotifications() {
         },
         (payload) => {
           setNotifications((prev) => {
-            const existingIndex = prev.findIndex((n) => n.id === payload.new.id);
+            const existingIndex = prev.findIndex((n) => n.id === (payload.new as any)?.id);
             switch (payload.eventType) {
               case 'INSERT':
                 if (existingIndex === -1) {

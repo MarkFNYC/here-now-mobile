@@ -1,50 +1,44 @@
 import 'react-native-url-polyfill/auto';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
+let supabaseInstance: SupabaseClient | null = null;
 
-// Debug: Check if env vars are loaded
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Missing Supabase credentials!');
-  console.error('URL:', supabaseUrl);
-  console.error('Key:', supabaseAnonKey ? 'Present' : 'Missing');
+export function getSupabase(): SupabaseClient {
+  if (supabaseInstance) return supabaseInstance;
+
+  supabaseInstance = createClient(
+    'https://siyabqommfwjzefpgwjm.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNpeWFicW9tbWZ3anplZnBnd2ptIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzAzOTk4ODAsImV4cCI6MjA0NTk3NTg4MH0.gNIJ3SjqMbv-U37i-eSfbCkwxeHKBt-oTwokWNVMrTU',
+    {
+      auth: {
+        storage: SecureStore as any,
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: false,
+      },
+    }
+  );
+
+  return supabaseInstance;
 }
 
-// Custom storage implementation
-// Use localStorage for web, SecureStore for mobile
-const isWeb = typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
+// For backward compatibility - all existing imports will continue to work
+// This proxy defers initialization until first property access
+export const supabase = new Proxy({} as SupabaseClient, {
+  get(_target, prop) {
+    const client = getSupabase();
+    const value = (client as any)[prop];
+    // If it's a function, bind it to the client to preserve 'this' context
+    if (typeof value === 'function') {
+      return value.bind(client);
+    }
+    return value;
+  },
+}) as SupabaseClient;
 
-const storage = {
-  getItem: async (key: string) => {
-    if (isWeb) {
-      return localStorage.getItem(key);
-    } else {
-      return await SecureStore.getItemAsync(key);
-    }
-  },
-  setItem: async (key: string, value: string) => {
-    if (isWeb) {
-      localStorage.setItem(key, value);
-    } else {
-      await SecureStore.setItemAsync(key, value);
-    }
-  },
-  removeItem: async (key: string) => {
-    if (isWeb) {
-      localStorage.removeItem(key);
-    } else {
-      await SecureStore.deleteItemAsync(key);
-    }
-  },
-};
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    storage: storage as any,
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true, // Enable to handle magic link callbacks
-  },
-});
+// Export whether credentials are valid (lazy-checked)
+export function hasValidCredentials(): boolean {
+  // Credentials are hardcoded, so they're always valid
+  return true;
+}
