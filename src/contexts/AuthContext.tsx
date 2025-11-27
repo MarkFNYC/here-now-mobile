@@ -31,7 +31,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Handle auth callback from magic links (for web)
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && window.location) {
       supabase.auth.onAuthStateChange((event, session) => {
         if (event === 'SIGNED_IN' && session) {
           console.log('[Auth] User signed in via magic link/callback');
@@ -183,9 +183,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       email,
       options: {
         // For web/localhost development, provide a redirect URL that the app can handle
-        emailRedirectTo: typeof window !== 'undefined' 
+        emailRedirectTo: (typeof window !== 'undefined' && window.location && window.location.origin)
           ? `${window.location.origin}/auth/callback`
-          : undefined,
+          : 'herenow://auth/callback',
       },
     });
 
@@ -281,9 +281,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         },
         shouldCreateUser: true,
         // For web/localhost development, provide a redirect URL that the app can handle
-        emailRedirectTo: typeof window !== 'undefined' 
+        emailRedirectTo: (typeof window !== 'undefined' && window.location && window.location.origin)
           ? `${window.location.origin}/auth/callback`
-          : undefined,
+          : 'herenow://auth/callback',
       },
     });
 

@@ -15,7 +15,7 @@ export default function AuthCallbackScreen({ navigation }: AuthCallbackScreenPro
     const handleAuthCallback = async () => {
       try {
         // Check if we're on web and have URL hash parameters
-        if (typeof window !== 'undefined') {
+        if (typeof window !== 'undefined' && window.location?.hash) {
           const hash = window.location.hash;
           
           if (hash && hash.includes('access_token')) {
@@ -55,7 +55,9 @@ export default function AuthCallbackScreen({ navigation }: AuthCallbackScreenPro
                 await refreshUser();
                 
                 // Clear the URL hash to clean up
-                window.history.replaceState(null, '', window.location.pathname);
+                if (typeof window !== 'undefined' && window.history && window.location) {
+                  window.history.replaceState(null, '', window.location.pathname || '');
+                }
               }
             } else {
               console.log('[AuthCallback] No tokens in hash, checking existing session');
@@ -73,7 +75,9 @@ export default function AuthCallbackScreen({ navigation }: AuthCallbackScreenPro
                 await refreshUser();
                 
                 // Clear the URL hash
-                window.history.replaceState(null, '', window.location.pathname);
+                if (typeof window !== 'undefined' && window.history && window.location) {
+                  window.history.replaceState(null, '', window.location.pathname || '');
+                }
               } else {
                 console.warn('[AuthCallback] No session found and no tokens in URL');
               }
