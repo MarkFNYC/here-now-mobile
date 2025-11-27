@@ -36,7 +36,7 @@ function AppContent() {
 
   React.useEffect(() => {
     // Check if we're on the callback URL (for web)
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && window.location) {
       const path = window.location.pathname;
       const hash = window.location.hash;
       
