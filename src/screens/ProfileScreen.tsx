@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../contexts/AuthContext';
 import ActivityTagsSelector from '../components/ActivityTagsSelector';
@@ -14,20 +15,41 @@ export default function ProfileScreen({ navigation }: any) {
     
     const unsubscribe = navigation.addListener('focus', () => {
       // Only refresh when screen comes into focus, not on every render
+      console.log('[ProfileScreen] Screen focused, refreshing user data...');
       refreshUser();
     });
     
     return unsubscribe;
   }, [navigation]); // Remove refreshUser from deps to avoid recreating listener
 
-  // Debug: Log photo URL
+  // Debug: Log photo URL and user state changes
   useEffect(() => {
+    console.log('[ProfileScreen] User state changed:', {
+      hasUser: !!user,
+      hasPhotoUrl: !!user?.photo_url,
+      photoUrl: user?.photo_url,
+      userId: user?.id,
+      fullName: user?.full_name
+    });
+    
     if (user?.photo_url) {
       console.log('[ProfileScreen] Photo URL:', user.photo_url);
+      // Test if URL is accessible
+      fetch(user.photo_url, { method: 'HEAD' })
+        .then(response => {
+          console.log('[ProfileScreen] Photo URL accessibility check:', {
+            status: response.status,
+            ok: response.ok,
+            contentType: response.headers.get('content-type')
+          });
+        })
+        .catch(error => {
+          console.error('[ProfileScreen] Photo URL not accessible:', error);
+        });
     } else {
       console.log('[ProfileScreen] No photo URL found');
     }
-  }, [user?.photo_url]);
+  }, [user?.photo_url, user?.id]);
 
   const handleSignOut = async () => {
     try {
@@ -54,10 +76,19 @@ export default function ProfileScreen({ navigation }: any) {
           <View style={styles.avatarContainer}>
             {user?.photo_url ? (
               <Image 
+                key={user.photo_url} // Force re-render when URL changes
                 source={{ uri: user.photo_url }} 
                 style={styles.avatar}
+                contentFit="cover"
+                transition={200}
+                cachePolicy="memory-disk"
+                priority="high"
                 onError={(error) => {
-                  console.error('Error loading profile photo:', error);
+                  console.error('[ProfileScreen] Error loading profile photo:', error);
+                  console.error('[ProfileScreen] Photo URL was:', user.photo_url);
+                }}
+                onLoad={() => {
+                  console.log('[ProfileScreen] Photo loaded successfully:', user.photo_url);
                 }}
               />
             ) : (
@@ -120,6 +151,13 @@ export default function ProfileScreen({ navigation }: any) {
             onPress={() => navigation?.navigate('EditBio', { editMode: true })}
           >
             <Text style={styles.cardLabel}>Edit Bio</Text>
+            <Text style={styles.editHint}>→</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.card, { marginTop: 8 }]}
+            onPress={() => navigation?.navigate('EditName', { editMode: true })}
+          >
+            <Text style={styles.cardLabel}>Edit Name</Text>
             <Text style={styles.editHint}>→</Text>
           </TouchableOpacity>
           <TouchableOpacity

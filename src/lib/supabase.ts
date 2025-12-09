@@ -9,7 +9,7 @@ export function getSupabase(): SupabaseClient {
 
   supabaseInstance = createClient(
     'https://siyabqommfwjzefpgwjm.supabase.co',
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNpeWFicW9tbWZ3anplZnBnd2ptIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzAzOTk4ODAsImV4cCI6MjA0NTk3NTg4MH0.gNIJ3SjqMbv-U37i-eSfbCkwxeHKBt-oTwokWNVMrTU',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNpeWFicW9tbWZ3anplZnBnd2ptIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIxMDgzODMsImV4cCI6MjA3NzY4NDM4M30.1wPbHDzpr_1lmzXqsXV62TFKnudkZGaQhTXA83z0ExQ',
     {
       auth: {
         storage: SecureStore as any,

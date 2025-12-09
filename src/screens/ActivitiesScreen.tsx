@@ -54,7 +54,7 @@ export default function ActivitiesScreen({ navigation }: ActivitiesScreenProps) 
       const { data, error } = await supabase.rpc('get_nearby_activities', {
         user_lat: lat,
         user_lng: lng,
-        radius_km: 50, // Increased to 50km for testing (was 5km)
+        radius_km: 10000, // Increased to 10,000km for testing (allows SF to UK connections)
       });
 
       if (error) {

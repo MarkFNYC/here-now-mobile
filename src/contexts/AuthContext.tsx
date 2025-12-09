@@ -30,6 +30,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
+    let timeoutId: NodeJS.Timeout;
+
+    // Set a timeout to prevent infinite loading (10 seconds max)
+    timeoutId = setTimeout(() => {
+      if (isMounted) {
+        console.warn('[Auth] Session check timeout - setting loading to false');
+        setLoading(false);
+      }
+    }, 10000);
+
     // Handle auth callback from magic links (for web)
     if (typeof window !== 'undefined' && window.location) {
       supabase.auth.onAuthStateChange((event, session) => {
@@ -44,6 +55,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Check active session
     supabase.auth.getSession()
       .then(({ data: { session } }) => {
+        if (!isMounted) return;
+        clearTimeout(timeoutId);
         setSession(session);
         if (session?.user) {
           loadUserProfile(session.user.id);
@@ -52,6 +65,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       })
       .catch((error) => {
+        if (!isMounted) return;
+        clearTimeout(timeoutId);
         console.error('Error checking session:', error);
         setLoading(false);
       });
@@ -60,6 +75,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!isMounted) return;
+      clearTimeout(timeoutId);
       setSession(session);
       if (session?.user) {
         loadUserProfile(session.user.id);
@@ -69,21 +86,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+      subscription.unsubscribe();
+    };
   }, []);
 
   async function loadUserProfile(userId: string) {
     try {
-      const { data, error } = await supabase
+      console.log('[Auth] Loading user profile for:', userId);
+      
+      // Add timeout to prevent hanging
+      const profilePromise = supabase
         .from('users')
         .select('*')
         .eq('id', userId)
         .single();
 
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Profile load timeout')), 8000)
+      );
+
+      const { data, error } = await Promise.race([profilePromise, timeoutPromise]) as any;
+
       if (error) {
         // If user profile doesn't exist, create it
         if (error.code === 'PGRST116') {
-          console.log('User profile not found, creating...');
+          console.log('[Auth] User profile not found, creating...');
           const { data: authUser } = await supabase.auth.getUser();
 
           if (authUser.user) {
@@ -101,7 +131,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               });
 
             if (createError) {
-              console.error('Error creating user profile:', createError);
+              console.error('[Auth] Error creating user profile:', createError);
               // If upsert fails, try to fetch the profile again (might have been created by another process)
               if (createError.code === '23505' || createError.code === 'PGRST116') {
                 const { data: existingUser } = await supabase
@@ -111,6 +141,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                   .single();
                 if (existingUser) {
                   setUser(existingUser);
+                  setLoading(false);
                   return;
                 }
               }
@@ -125,21 +156,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               .single();
             
             if (fetchError) {
-              console.error('Error fetching user profile after upsert:', fetchError);
-              // If fetch fails, try to continue anyway
+              console.error('[Auth] Error fetching user profile after upsert:', fetchError);
+              // If fetch fails, don't set user - let it fall through to login screen
+              // The upsert should have created the profile, so next time it will work
             } else if (newUser) {
               setUser(newUser);
             }
+          } else {
+            console.warn('[Auth] No auth user found, cannot create profile');
           }
         } else {
+          console.error('[Auth] Error loading user profile:', error);
           throw error;
         }
       } else {
+        console.log('[Auth] User profile loaded successfully');
         setUser(data);
       }
-    } catch (error) {
-      console.error('Error loading user profile:', error);
+    } catch (error: any) {
+      console.error('[Auth] Error loading user profile:', error);
+      // On error, still set loading to false to prevent infinite loading
+      // User will see login screen if no session, or we'll retry
     } finally {
+      console.log('[Auth] Setting loading to false');
       setLoading(false);
     }
   }
@@ -179,14 +218,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     console.log('[Auth] Signing in with email:', email);
     
     // Sign in with email OTP (works for both existing and new users)
+    // Note: We don't include emailRedirectTo to ensure OTP codes are sent instead of magic links
     const { data, error } = await supabase.auth.signInWithOtp({
       email,
-      options: {
-        // For web/localhost development, provide a redirect URL that the app can handle
-        emailRedirectTo: (typeof window !== 'undefined' && window.location && window.location.origin)
-          ? `${window.location.origin}/auth/callback`
-          : 'herenow://auth/callback',
-      },
     });
 
     if (error) {
@@ -271,7 +305,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     console.log('[Auth] Signing up with email:', email);
     
     // Sign up with email OTP (6-digit code)
-    // Note: This requires Supabase to be configured to send OTP codes instead of magic links
+    // Note: We don't include emailRedirectTo to ensure OTP codes are sent instead of magic links
+    // This requires Supabase to be configured to send OTP codes
     // Go to: Supabase Dashboard > Authentication > Email Templates > OTP
     const { data, error } = await supabase.auth.signInWithOtp({
       email,
@@ -280,10 +315,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           full_name: fullName,
         },
         shouldCreateUser: true,
-        // For web/localhost development, provide a redirect URL that the app can handle
-        emailRedirectTo: (typeof window !== 'undefined' && window.location && window.location.origin)
-          ? `${window.location.origin}/auth/callback`
-          : 'herenow://auth/callback',
       },
     });
 
@@ -292,8 +323,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw error;
     }
     
-    console.log('[Auth] Email verification sent successfully');
-    console.log('[Auth] Note: If you received a magic link instead of a code, check your email for the code in a follow-up email, or configure Supabase to send OTP codes');
+    console.log('[Auth] Email OTP sent successfully');
   }
 
   async function verifyPhoneOTP(phone: string, token: string) {
@@ -306,78 +336,122 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     console.log('[Auth] Verifying phone OTP:', normalizedPhone);
     
-    const { data, error } = await supabase.auth.verifyOtp({
-      phone: normalizedPhone,
-      token,
-      type: 'sms',
-    });
-
-    if (error) {
-      console.error('[Auth] Phone OTP verification error:', error);
-      throw error;
-    }
-
-    if (data.user) {
-      console.log('[Auth] Phone OTP verified successfully, user:', data.user.id);
-      // Create or update user profile after successful verification
-      const fullName = data.user.user_metadata?.full_name || 'User';
-      
-      const { error: profileError } = await supabase.from('users').upsert({
-        id: data.user.id,
-        phone_or_email: normalizedPhone,
-        full_name: fullName,
-        is_verified: false, // ID verification is separate (Story 47)
-        is_on: false,
-      }, {
-        onConflict: 'id',
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        phone: normalizedPhone,
+        token,
+        type: 'sms',
       });
 
-      if (profileError) {
-        console.error('[Auth] Profile creation error:', profileError);
-        throw profileError;
+      if (error) {
+        console.error('[Auth] Phone OTP verification error:', error);
+        throw error;
       }
 
-      // Load the user profile
-      await loadUserProfile(data.user.id);
+      if (data.user) {
+        console.log('[Auth] Phone OTP verified successfully, user:', data.user.id);
+        // Create or update user profile after successful verification
+        const fullName = data.user.user_metadata?.full_name || 'User';
+        
+        try {
+          const { error: profileError } = await supabase.from('users').upsert({
+            id: data.user.id,
+            phone_or_email: normalizedPhone,
+            full_name: fullName,
+            is_verified: false, // ID verification is separate (Story 47)
+            is_on: false,
+          }, {
+            onConflict: 'id',
+          });
+
+          if (profileError) {
+            console.error('[Auth] Profile creation error:', profileError);
+            // Don't throw - profile might already exist, try to load it
+          }
+
+          // Load the user profile with timeout protection
+          // Use Promise.race to prevent hanging
+          const loadProfilePromise = loadUserProfile(data.user.id);
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Profile load timeout')), 10000)
+          );
+
+          try {
+            await Promise.race([loadProfilePromise, timeoutPromise]);
+          } catch (loadError: any) {
+            console.warn('[Auth] Profile load failed or timed out:', loadError);
+            // Don't throw - auth succeeded, profile will load on next app start
+            // The session is valid, so user will be logged in
+          }
+        } catch (profileError: any) {
+          console.error('[Auth] Error during profile setup:', profileError);
+          // Don't throw - OTP verification succeeded, profile issues are non-critical
+        }
+      }
+    } catch (error: any) {
+      console.error('[Auth] Phone OTP verification failed:', error);
+      throw error;
     }
   }
 
   async function verifyEmailOTP(email: string, token: string) {
     console.log('[Auth] Verifying email OTP:', email);
     
-    const { data, error } = await supabase.auth.verifyOtp({
-      email,
-      token,
-      type: 'email',
-    });
-
-    if (error) {
-      console.error('[Auth] Email OTP verification error:', error);
-      throw error;
-    }
-
-    if (data.user) {
-      console.log('[Auth] Email OTP verified successfully, user:', data.user.id);
-      // Create or update user profile after successful verification
-      const fullName = data.user.user_metadata?.full_name || 'User';
-      
-      const { error: profileError } = await supabase.from('users').upsert({
-        id: data.user.id,
-        phone_or_email: email,
-        full_name: fullName,
-        is_verified: false, // ID verification is separate (Story 47)
-        is_on: false,
-      }, {
-        onConflict: 'id',
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        email,
+        token,
+        type: 'email',
       });
 
-      if (profileError) {
-        console.error('[Auth] Profile creation error:', profileError);
-        throw profileError;
+      if (error) {
+        console.error('[Auth] Email OTP verification error:', error);
+        throw error;
       }
 
-      // Load the user profile
-      await loadUserProfile(data.user.id);
+      if (data.user) {
+        console.log('[Auth] Email OTP verified successfully, user:', data.user.id);
+        // Create or update user profile after successful verification
+        const fullName = data.user.user_metadata?.full_name || 'User';
+        
+        try {
+          const { error: profileError } = await supabase.from('users').upsert({
+            id: data.user.id,
+            phone_or_email: email,
+            full_name: fullName,
+            is_verified: false, // ID verification is separate (Story 47)
+            is_on: false,
+          }, {
+            onConflict: 'id',
+          });
+
+          if (profileError) {
+            console.error('[Auth] Profile creation error:', profileError);
+            // Don't throw - profile might already exist, try to load it
+          }
+
+          // Load the user profile with timeout protection
+          // Use Promise.race to prevent hanging
+          const loadProfilePromise = loadUserProfile(data.user.id);
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Profile load timeout')), 10000)
+          );
+
+          try {
+            await Promise.race([loadProfilePromise, timeoutPromise]);
+          } catch (loadError: any) {
+            console.warn('[Auth] Profile load failed or timed out:', loadError);
+            // Don't throw - auth succeeded, profile will load on next app start
+            // The session is valid, so user will be logged in
+          }
+        } catch (profileError: any) {
+          console.error('[Auth] Error during profile setup:', profileError);
+          // Don't throw - OTP verification succeeded, profile issues are non-critical
+        }
+      }
+    } catch (error: any) {
+      console.error('[Auth] Email OTP verification failed:', error);
+      throw error;
     }
   }
 
@@ -404,6 +478,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function resendEmailOTP(email: string) {
     console.log('[Auth] Resending email OTP:', email);
     
+    // Note: We don't include emailRedirectTo to ensure OTP codes are sent instead of magic links
     const { data, error } = await supabase.auth.signInWithOtp({
       email,
       options: {

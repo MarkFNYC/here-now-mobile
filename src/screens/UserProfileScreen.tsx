@@ -4,11 +4,11 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Image,
   TouchableOpacity,
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
@@ -212,6 +212,8 @@ export default function UserProfileScreen({ route, navigation }: UserProfileScre
             <Image 
               source={{ uri: profile.photo_url }} 
               style={styles.profilePhoto}
+              contentFit="cover"
+              transition={200}
               onError={(error) => {
                 console.error('Error loading profile photo:', error);
               }}

@@ -3,7 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { ActivityIndicator, View, Text } from 'react-native';
+import { ActivityIndicator, View, Text, Platform } from 'react-native';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import MainNavigator from './src/navigation/MainNavigator';
 import ProfileCreationNavigator from './src/navigation/ProfileCreationNavigator';
@@ -35,8 +35,9 @@ function AppContent() {
   const [showCallback, setShowCallback] = React.useState(false);
 
   React.useEffect(() => {
-    // Check if we're on the callback URL (for web)
-    if (typeof window !== 'undefined' && window.location) {
+    // Check if we're on the callback URL (for web only)
+    // For mobile, React Navigation's linking config handles deep links automatically
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location) {
       const path = window.location.pathname;
       const hash = window.location.hash;
       
@@ -107,9 +108,23 @@ export default function App() {
   }
 
   try {
-    // Configure deep linking for web callbacks
+    // Configure deep linking for authentication callbacks
+    // React Navigation will automatically handle deep links and route to AuthCallback screen
     const linking = {
       prefixes: ['herenow://', 'http://localhost:8081', 'https://localhost:8081'],
+      config: {
+        screens: {
+          // AuthCallback is in AuthStackNavigator, so we reference it directly
+          AuthCallback: {
+            path: 'auth/callback',
+            parse: {
+              access_token: (value: string) => value,
+              refresh_token: (value: string) => value,
+              type: (value: string) => value,
+            },
+          },
+        },
+      },
     };
 
     return (

@@ -166,3 +166,8 @@ GRANT EXECUTE ON FUNCTION get_nearby_users(FLOAT, FLOAT, FLOAT) TO authenticated
 GRANT EXECUTE ON FUNCTION get_nearby_activities(FLOAT, FLOAT, FLOAT) TO authenticated;
 
 
+
+
+
+
+

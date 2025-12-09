@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { Image } from 'expo-image';
 
 interface Participant {
   id: string;
@@ -39,7 +40,12 @@ export function ParticipantCard({
       <View style={styles.content}>
         {/* Avatar */}
         {participant.photo_url ? (
-          <Image source={{ uri: participant.photo_url }} style={styles.avatar} />
+          <Image 
+            source={{ uri: participant.photo_url }} 
+            style={styles.avatar}
+            contentFit="cover"
+            transition={200}
+          />
         ) : (
           <View style={styles.avatarPlaceholder}>
             <Text style={styles.avatarPlaceholderText}>

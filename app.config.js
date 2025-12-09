@@ -1,7 +1,7 @@
 // Hardcode Supabase credentials directly
 // process.env is empty during EAS builds, so we hardcode the values here
 const supabaseUrl = 'https://siyabqommfwjzefpgwjm.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNpeWFicW9tbWZ3anplZnBnd2ptIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzAzOTk4ODAsImV4cCI6MjA0NTk3NTg4MH0.gNIJ3SjqMbv-U37i-eSfbCkwxeHKBt-oTwokWNVMrTU';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNpeWFicW9tbWZ3anplZnBnd2ptIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIxMDgzODMsImV4cCI6MjA3NzY4NDM4M30.1wPbHDzpr_1lmzXqsXV62TFKnudkZGaQhTXA83z0ExQ';
 
 export default {
   expo: {
@@ -49,7 +49,7 @@ export default {
     },
     extra: {
       EXPO_PUBLIC_SUPABASE_URL: "https://siyabqommfwjzefpgwjm.supabase.co",
-      EXPO_PUBLIC_SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNpeWFicW9tbWZ3anplZnBnd2ptIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzAzOTk4ODAsImV4cCI6MjA0NTk3NTg4MH0.gNIJ3SjqMbv-U37i-eSfbCkwxeHKBt-oTwokWNVMrTU",
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNpeWFicW9tbWZ3anplZnBnd2ptIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIxMDgzODMsImV4cCI6MjA3NzY4NDM4M30.1wPbHDzpr_1lmzXqsXV62TFKnudkZGaQhTXA83z0ExQ",
       eas: {
         projectId: "12ea2d88-43c3-4e98-99e1-6a20da0c4915"
       }

@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Image } from 'expo-image';
 
 interface UserCardProps {
   userId: string;
@@ -27,6 +28,8 @@ export function UserCard({ userId, name, bio, activityTags, distance, photoUrl, 
           <Image 
             source={{ uri: photoUrl }} 
             style={styles.avatar}
+            contentFit="cover"
+            transition={200}
             onError={(error) => {
               console.error('Error loading user photo:', error);
             }}

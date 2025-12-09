@@ -36,7 +36,6 @@ export type ActivitiesStackParamList = {
   ActivitiesList: undefined;
   ActivityDetail: { activityId: string };
   ActivityChat: { activityId: string };
-  ActivityCreation: undefined;
 };
 
 // Main Tab Navigator

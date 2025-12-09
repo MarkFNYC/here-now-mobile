@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, RefreshControl, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
@@ -316,6 +317,8 @@ export default function ChatsScreen({ navigation }: ChatsScreenProps) {
                 <Image
                   source={{ uri: chat.other_user.photo_url }}
                   style={styles.avatar}
+                  contentFit="cover"
+                  transition={200}
                 />
               ) : (
                 <View style={styles.avatar}>

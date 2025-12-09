@@ -67,7 +67,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       const { data, error } = await supabase.rpc('get_nearby_users', {
         user_lat: location.latitude,
         user_lng: location.longitude,
-        radius_km: 50, // Search within 50km for testing
+        radius_km: 10000, // Increased to 10,000km for testing (allows SF to UK connections)
       });
 
       if (error) throw error;

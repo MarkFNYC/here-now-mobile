@@ -4,13 +4,15 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Image,
   ActivityIndicator,
   Alert,
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
+import { File } from 'expo-file-system';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -48,14 +50,20 @@ export default function PhotoUploadScreen({ navigation, route }: PhotoUploadScre
 
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: 'images', // Use string value instead of deprecated MediaTypeOptions
+        mediaTypes: 'images',
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 0.7, // Compress to reduce file size (0.7 = 70% quality, good balance)
+        quality: 1, // Get full quality first, we'll compress with ImageManipulator
       });
 
       if (!result.canceled && result.assets[0]) {
-        setPhoto(result.assets[0].uri);
+        // Compress and resize the image before setting it
+        const manipulatedImage = await ImageManipulator.manipulateAsync(
+          result.assets[0].uri,
+          [{ resize: { width: 1024 } }], // Resize to max 1024px width (maintains aspect ratio)
+          { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG } // 80% quality JPEG
+        );
+        setPhoto(manipulatedImage.uri);
         setNewPhotoSelected(true);
       }
     } catch (error) {
@@ -72,11 +80,17 @@ export default function PhotoUploadScreen({ navigation, route }: PhotoUploadScre
       const result = await ImagePicker.launchCameraAsync({
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 0.7, // Compress to reduce file size (0.7 = 70% quality, good balance)
+        quality: 1, // Get full quality first, we'll compress with ImageManipulator
       });
 
       if (!result.canceled && result.assets[0]) {
-        setPhoto(result.assets[0].uri);
+        // Compress and resize the image before setting it
+        const manipulatedImage = await ImageManipulator.manipulateAsync(
+          result.assets[0].uri,
+          [{ resize: { width: 1024 } }], // Resize to max 1024px width (maintains aspect ratio)
+          { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG } // 80% quality JPEG
+        );
+        setPhoto(manipulatedImage.uri);
         setNewPhotoSelected(true);
       }
     } catch (error) {
@@ -106,57 +120,50 @@ export default function PhotoUploadScreen({ navigation, route }: PhotoUploadScre
     let uploadSucceeded = false;
 
     try {
-      // Convert image URI to blob
-      const response = await fetch(photo);
-      const blob = await response.blob();
-
-      // Check file size (Supabase Storage typically has a 50MB limit, but we'll limit to 10MB for profile photos)
-      const fileSizeMB = blob.size / (1024 * 1024);
-      const maxSizeMB = 10;
+      // Prepare file for upload - React Native compatible approach
+      // Note: Image is already compressed by expo-image-manipulator (max 1024px, 80% quality)
+      console.log('[PhotoUpload] Preparing file for upload from URI:', photo);
       
-      if (fileSizeMB > maxSizeMB) {
-        Alert.alert(
-          'File Too Large',
-          `Photo is ${fileSizeMB.toFixed(1)}MB. Please choose a smaller image (under ${maxSizeMB}MB). The image will be compressed automatically.`,
-          [
-            {
-              text: 'Choose Different Photo',
-              style: 'cancel',
-              onPress: () => {
-                setUploading(false);
-              },
-            },
-            {
-              text: 'Skip Photo',
-              onPress: () => {
-                setUploading(false);
-                navigation.navigate('BioEntry');
-              },
-            },
-          ]
-        );
-        setUploading(false);
-        return;
-      }
-
-      // Log file size for debugging
-      console.log(`[PhotoUpload] File size: ${fileSizeMB.toFixed(2)}MB, format: ${blob.type}`);
-
-      // Create a consistent filename based on user ID (allows replacing existing photo)
-      // Extract file extension from the URI or default to jpg
-      let fileExt = 'jpg';
-      const uriParts = photo.split('.');
-      if (uriParts.length > 1) {
-        fileExt = uriParts.pop()?.toLowerCase() || 'jpg';
+      // Extract file extension
+      const fileExt = photo.split('.').pop()?.toLowerCase() || 'jpg';
+      
+      // Ensure valid image extension
+      const validExt = ['jpg', 'jpeg', 'png', 'webp'].includes(fileExt) ? fileExt : 'jpg';
+      
+      // Set content type correctly (jpg should be image/jpeg)
+      const contentType = `image/${validExt === 'jpg' ? 'jpeg' : validExt}`;
+      
+      // Create unique filename based on user ID and timestamp
+      const fileName = `${user.id}-${Date.now()}.${validExt}`;
+      const filePath = fileName;
+      
+      // Use expo-file-system's new File class - works reliably in production builds
+      console.log('[PhotoUpload] Creating File object from URI:', photo);
+      
+      // Create File object from URI
+      const file = new File(photo);
+      
+      // Get the file content as ArrayBuffer
+      const arrayBuffer = await file.arrayBuffer();
+      const fileSize = arrayBuffer.byteLength;
+      
+      console.log('[PhotoUpload] File read successfully, size:', fileSize, 'bytes');
+      
+      if (fileSize === 0) {
+        throw new Error('Photo file is empty (0 bytes)');
       }
       
-      // Ensure valid image extension (JPEG, PNG, WebP are all supported)
-      if (!['jpg', 'jpeg', 'png', 'webp'].includes(fileExt)) {
-        fileExt = 'jpg';
+      if (fileSize < 100) {
+        console.warn('[PhotoUpload] WARNING: File size is suspiciously small:', fileSize, 'bytes');
       }
       
-      const fileName = `${user.id}.${fileExt}`;
-      const filePath = fileName; // Don't include bucket name in path - bucket is already specified in .from()
+      console.log('[PhotoUpload] ArrayBuffer prepared for upload:', {
+        size: fileSize,
+        type: contentType,
+        extension: validExt,
+      });
+      
+      const uploadData = arrayBuffer;
 
       // Delete existing photo if it exists (ignore errors)
       await supabase.storage
@@ -165,16 +172,22 @@ export default function PhotoUploadScreen({ navigation, route }: PhotoUploadScre
         .catch(() => {}); // Ignore errors if file doesn't exist
 
       // Upload to Supabase Storage
-      const { error: uploadError } = await supabase.storage
+      console.log('[PhotoUpload] Starting upload to Supabase Storage...');
+      console.log('[PhotoUpload] File path:', filePath);
+      console.log('[PhotoUpload] Content type:', contentType);
+      
+      const { data: uploadResult, error: uploadError } = await supabase.storage
         .from('profile-photos')
-        .upload(filePath, blob, {
-          contentType: fileExt === 'jpg' || fileExt === 'jpeg' ? 'image/jpeg' : `image/${fileExt}`,
+        .upload(filePath, uploadData, {
+          contentType: contentType,
           upsert: true,
         });
 
+      console.log('[PhotoUpload] Upload result:', uploadResult);
+      
       if (uploadError) {
-        console.error('Upload error:', uploadError);
-        console.error('Upload error details:', JSON.stringify(uploadError, null, 2));
+        console.error('[PhotoUpload] Upload error:', uploadError);
+        console.error('[PhotoUpload] Upload error details:', JSON.stringify(uploadError, null, 2));
         
         // Check if it's an RLS policy error
         if (uploadError.message?.includes('row-level security') || 
@@ -225,35 +238,61 @@ export default function PhotoUploadScreen({ navigation, route }: PhotoUploadScre
         throw uploadError;
       }
 
-      // Get public URL (use fileName, not filePath since filePath includes bucket name)
+      if (!uploadResult) {
+        throw new Error('Upload succeeded but no result data returned');
+      }
+
+      // Get public URL using the upload result path (more reliable)
       const { data: urlData } = supabase.storage
         .from('profile-photos')
-        .getPublicUrl(fileName);
+        .getPublicUrl(uploadResult.path);
 
       if (!urlData?.publicUrl) {
         throw new Error('Failed to get photo URL');
       }
 
-      // Add cache-busting timestamp to force browser to reload the image
-      const photoUrlWithTimestamp = `${urlData.publicUrl}?t=${Date.now()}`;
+      const publicUrl = urlData.publicUrl;
+      console.log('[PhotoUpload] Photo uploaded successfully');
+      console.log('[PhotoUpload] Upload path:', uploadResult.path);
+      console.log('[PhotoUpload] Public URL:', publicUrl);
+      console.log('[PhotoUpload] File name:', fileName);
 
       // Update user profile with photo URL
       const { error: updateError } = await supabase
         .from('users')
-        .update({ photo_url: photoUrlWithTimestamp })
+        .update({ photo_url: publicUrl })
         .eq('id', user.id);
 
       if (updateError) {
-        console.error('Update error:', updateError);
+        console.error('[PhotoUpload] Update error:', updateError);
         throw updateError;
       }
 
+      console.log('[PhotoUpload] Photo URL saved to database');
       uploadSucceeded = true;
-      // Refresh user data
+      
+      // Refresh user data - wait a bit to ensure database update is complete
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Verify the user was updated BEFORE refreshing
+      const { data: updatedUser } = await supabase
+        .from('users')
+        .select('photo_url')
+        .eq('id', user.id)
+        .single();
+      
+      console.log('[PhotoUpload] Verified photo URL in database:', updatedUser?.photo_url);
+      
+      // Now refresh user state
       await refreshUser();
+      console.log('[PhotoUpload] User data refreshed');
+      
+      // Wait a bit more to ensure state propagates
+      await new Promise(resolve => setTimeout(resolve, 300));
 
       // Navigate to next screen or back to profile
       if (editMode) {
+        // In edit mode, go back which will trigger focus listener to refresh
         navigation.goBack();
       } else {
         navigation.navigate('BioEntry');
@@ -300,7 +339,13 @@ export default function PhotoUploadScreen({ navigation, route }: PhotoUploadScre
 
         <View style={styles.photoContainer}>
           {photo ? (
-            <Image source={{ uri: photo }} style={styles.photoPreview} />
+            <Image 
+              source={{ uri: photo }} 
+              style={styles.photoPreview}
+              contentFit="cover"
+              transition={200}
+              placeholder={{ blurhash: 'LGF5]+Yk^6#M@-5c,1J5@[or[Q6.' }}
+            />
           ) : (
             <View style={styles.photoPlaceholder}>
               <Text style={styles.photoPlaceholderText}>No photo selected</Text>

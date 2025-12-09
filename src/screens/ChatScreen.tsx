@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Image } from 'react-native';
+import { Image } from 'expo-image';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { ChatsStackParamList } from '../navigation/ChatsStackNavigator';
@@ -734,6 +734,8 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
                       <Image
                         source={{ uri: otherUser.photo_url }}
                         style={styles.avatar}
+                        contentFit="cover"
+                        transition={200}
                       />
                     )}
                     {!isMe && !otherUser?.photo_url && (
@@ -783,6 +785,8 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
                       <Image
                         source={{ uri: otherUser.photo_url }}
                         style={styles.avatar}
+                        contentFit="cover"
+                        transition={200}
                       />
                     )}
                     {!isMe && !otherUser?.photo_url && (
@@ -820,6 +824,8 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
                     <Image
                       source={{ uri: otherUser.photo_url }}
                       style={styles.avatar}
+                      contentFit="cover"
+                      transition={200}
                     />
                   )}
                   {!isMe && !otherUser?.photo_url && (

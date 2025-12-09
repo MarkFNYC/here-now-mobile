@@ -5,12 +5,14 @@ import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
 import PhotoUploadScreen from '../screens/PhotoUploadScreen';
 import BioEntryScreen from '../screens/BioEntryScreen';
 import NeighbourhoodScreen from '../screens/NeighbourhoodScreen';
+import EditNameScreen from '../screens/EditNameScreen';
 
 export type ProfileStackParamList = {
   ProfileMain: undefined;
   NotificationSettings: undefined;
   EditPhoto: { editMode: boolean };
   EditBio: { editMode: boolean };
+  EditName: { editMode: boolean };
   EditNeighbourhood: { editMode: boolean };
 };
 
@@ -61,6 +63,22 @@ export default function ProfileStackNavigator() {
         options={{
           headerShown: true,
           headerTitle: 'Edit Bio',
+          headerStyle: {
+            backgroundColor: '#ffffff',
+          },
+          headerTintColor: '#111827',
+          headerTitleStyle: {
+            fontWeight: '600',
+          },
+        }}
+        initialParams={{ editMode: true }}
+      />
+      <Stack.Screen
+        name="EditName"
+        component={EditNameScreen}
+        options={{
+          headerShown: true,
+          headerTitle: 'Edit Name',
           headerStyle: {
             backgroundColor: '#ffffff',
           },

@@ -10,7 +10,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Image } from 'react-native';
+import { Image } from 'expo-image';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -283,6 +283,8 @@ function RequestCard({ request, onAccept, onDecline, isProcessing, onViewProfile
           <Image 
             source={{ uri: requester.photo_url }} 
             style={styles.avatar}
+            contentFit="cover"
+            transition={200}
             onError={(error) => {
               console.error('Error loading requester photo:', error);
             }}

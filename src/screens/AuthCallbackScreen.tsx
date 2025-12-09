@@ -1,19 +1,40 @@
 import React, { useEffect } from 'react';
-import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, ActivityIndicator, StyleSheet, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
 interface AuthCallbackScreenProps {
   navigation?: any;
+  route?: any;
 }
 
-export default function AuthCallbackScreen({ navigation }: AuthCallbackScreenProps) {
+export default function AuthCallbackScreen({ navigation: navProp, route: routeProp }: AuthCallbackScreenProps) {
   const { refreshUser } = useAuth();
+  const navigation = useNavigation();
+  const route = useRoute();
 
   useEffect(() => {
-    const handleAuthCallback = async () => {
+    const handleAuthCallback = async (initialUrl?: string) => {
       try {
+        // Check for deep link parameters from route
+        const routeParams = (route.params || {}) as any;
+        let accessToken = routeParams.access_token;
+        let refreshToken = routeParams.refresh_token;
+        
+        // If we have an initial URL from deep link, parse it
+        if (initialUrl) {
+          console.log('[AuthCallback] Processing deep link URL:', initialUrl);
+          try {
+            const url = new URL(initialUrl);
+            accessToken = url.searchParams.get('access_token') || url.hash.split('access_token=')[1]?.split('&')[0];
+            refreshToken = url.searchParams.get('refresh_token') || url.hash.split('refresh_token=')[1]?.split('&')[0];
+          } catch (e) {
+            console.warn('[AuthCallback] Error parsing deep link URL:', e);
+          }
+        }
+
         // Check if we're on web and have URL hash parameters
         if (typeof window !== 'undefined' && window.location?.hash) {
           const hash = window.location.hash;
@@ -98,8 +119,30 @@ export default function AuthCallbackScreen({ navigation }: AuthCallbackScreenPro
             }
           }
         } else {
-          // For mobile, Supabase should handle this via deep linking
-          console.log('[AuthCallback] Mobile platform, checking session');
+          // For mobile, handle deep link parameters or check session
+          console.log('[AuthCallback] Mobile platform');
+          
+          // If we have tokens from deep link, use them
+          if (accessToken && refreshToken) {
+            console.log('[AuthCallback] Setting session from deep link tokens');
+            
+            const { data, error: sessionError } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken,
+            });
+
+            if (sessionError) {
+              console.error('[AuthCallback] Error setting session from deep link:', sessionError);
+              // Fall through to check existing session
+            } else if (data.session) {
+              console.log('[AuthCallback] Session set from deep link successfully');
+              await refreshUser();
+              return;
+            }
+          }
+          
+          // Otherwise, check for existing session (Supabase might have handled it automatically)
+          console.log('[AuthCallback] Checking existing session');
           const { data: { session }, error: sessionError } = await supabase.auth.getSession();
           
           if (sessionError) {
@@ -110,6 +153,8 @@ export default function AuthCallbackScreen({ navigation }: AuthCallbackScreenPro
           if (session) {
             console.log('[AuthCallback] Session exists on mobile');
             await refreshUser();
+          } else {
+            console.warn('[AuthCallback] No session found on mobile');
           }
         }
       } catch (error) {
@@ -122,8 +167,27 @@ export default function AuthCallbackScreen({ navigation }: AuthCallbackScreenPro
       handleAuthCallback();
     }, 100);
 
-    return () => clearTimeout(timer);
-  }, [refreshUser]);
+    // Listen for deep links on mobile
+    const handleDeepLink = (event: { url: string }) => {
+      console.log('[AuthCallback] Received deep link:', event.url);
+      handleAuthCallback(event.url);
+    };
+
+    const subscription = Linking.addEventListener('url', handleDeepLink);
+
+    // Check for initial URL if app was opened from a deep link
+    Linking.getInitialURL().then((url) => {
+      if (url) {
+        console.log('[AuthCallback] App opened with deep link:', url);
+        handleAuthCallback(url);
+      }
+    });
+
+    return () => {
+      clearTimeout(timer);
+      subscription.remove();
+    };
+  }, [refreshUser, route.params]);
 
   return (
     <SafeAreaView style={styles.container}>
